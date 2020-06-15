@@ -1,0 +1,50 @@
+.wrapper {
+  position: relative;
+  font-weight: 500;
+  margin: 0rem 0rem 1.5rem;
+}
+
+.wrapper label {
+  display: block;
+}
+
+.label {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  padding: 0 .25rem;
+  width: auto;
+  font-size: 1rem;
+  white-space: nowrap;
+  background-color: unset;
+  color: var(--color_grey_50);
+  transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: top left;
+  pointer-events: none;
+  background-color: var(--color_white);
+}
+
+.input {
+  display: block;
+  width: 100%;
+  padding: 1rem 2rem 1rem 1rem;
+  font-size: 1rem;
+  border-radius: var(--border-radius);
+  border: .125rem solid;
+  border-color: var(--color_grey_30);
+  color: var(--color_grey_80);
+  background-color: var(--white);
+}
+
+.active .label {
+  transform: translate(-.125rem, -1.5rem) scale(0.8);
+}
+
+.focused .label {
+  color: var(--color_info);
+}
+
+.focused .input {
+  outline: none;
+  border-color: var(--color_info);
+}

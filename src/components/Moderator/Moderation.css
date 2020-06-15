@@ -1,0 +1,5 @@
+.moderationError {
+  position: relative;
+  grid-column: LiveOnAir / HoldingRoom;
+  grid-row: LiveOnAir / VideoTiles;
+}

@@ -1,0 +1,138 @@
+.wrapper {
+  position: fixed;
+  bottom: 2rem;
+  right: 8rem;
+  color: var(--color_grey_90);
+  z-index: 1;
+}
+
+.watch-button {
+  border: 0;
+  background: unset;
+  height: 4rem;
+  width: 4rem;
+  font-size: 2rem;
+  border-radius: 100%;
+  cursor: pointer;
+  background-color: var(--color_white);
+  color: var(--color_grey_90);
+  transition: background-color 225ms ease;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.3),
+    0 6px 10px 0 rgba(0, 0, 0, 0.28), 0 9px 20px 5px rgba(0, 0, 0, 0.15);
+}
+
+.watch-button::before {
+  background-color: transparent;
+}
+
+.watch-button:hover {
+  background-color: var(--color_grey_90);
+  color: var(--color_white);
+}
+
+.arrow {
+  position: absolute;
+  top: 0;
+  left: 100%;
+  width: 5rem;
+  height: 5rem;
+  transform: rotate(-90deg);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.arrow::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: -0.125rem;
+  left: 50%;
+  height: 14px;
+  width: 14px;
+  background: var(--color_white);
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.3),
+    0 6px 10px 0 rgba(0, 0, 0, 0.28), 0 9px 20px 5px rgba(0, 0, 0, 0.15);
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.streamSource__container {
+  width: 70vw;
+  height: 5rem;
+  position: fixed;
+  bottom: 1.5rem;
+  right: 14rem;
+  background-color: white;
+  border-radius: 0.125rem;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.3),
+    0 6px 10px 0 rgba(0, 0, 0, 0.28), 0 9px 20px 5px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  will-change: transform;
+  transform: translate(2%, 0);
+  transition: visibility 225ms, transform 225ms ease, opacity 225ms ease;
+}
+
+.isOpen .streamSource__container {
+  opacity: 1;
+  transform: translate(0, 0);
+  visibility: visible;
+}
+
+.streamSource__form {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+div.streamSource__input {
+  width: 50vw;
+  margin: 0;
+}
+
+button.streamSource__button {
+  width: 8rem;
+  padding-right: 2rem;
+  margin: 0 1rem 0 0;
+}
+
+@media only screen and (max-width: 860px) {
+  .wrapper {
+    bottom: 1.5rem;
+    right: 2rem;
+  }
+
+  .streamSource__container {
+    top: 50%;
+    left: 8%;
+    width: 85vw;
+    position: fixed;
+    overflow: auto;
+    transform: translate(-50%, -50%);
+    height: 8rem;
+    transform: unset;
+  }
+
+  .isOpen .streamSource__container {
+    transform: unset;
+  }
+
+  .streamSource__form {
+    flex-direction: column;
+  }
+
+  div.streamSource__input {
+    width: 90%;
+  }
+
+  button.streamSource__button {
+    margin-right: unset;
+    margin-top: 1rem;
+  }
+
+  .arrow {
+    display: none;
+  }
+}

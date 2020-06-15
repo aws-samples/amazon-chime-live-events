@@ -1,0 +1,9 @@
+.Queue {
+  grid-area: Queue;
+  border-left: 1px solid var(--color_grey_10);
+  background-color: var(--color_white);
+}
+
+.Queue--hide {
+  display: none;
+}

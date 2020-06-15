@@ -1,0 +1,16 @@
+.button {
+  width: 100%;
+}
+
+video {
+  max-width: 100%;
+}
+
+.list {
+  padding: 0 1rem;
+  margin: 2rem 0 2.5rem;
+}
+
+.list li {
+  margin-bottom: 0.75rem;
+}

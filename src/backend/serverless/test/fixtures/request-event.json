@@ -1,0 +1,87 @@
+{
+  "Records": [
+    {
+      "cf": {
+        "config": {
+          "distributionId": "EXAMPLE"
+        },
+        "request": {
+          "clientIp": "98.145.134.173",
+          "headers": {
+            "x-forwarded-for": [
+              {
+                "key": "X-Forwarded-For",
+                "value": "98.145.134.173"
+              }
+            ],
+            "user-agent": [
+              {
+                "key": "User-Agent",
+                "value": "Amazon CloudFront"
+              }
+            ],
+            "via": [
+              {
+                "key": "Via",
+                "value": "2.0 65734c1b2d30e126d5bc1c66cd7b6f0b.cloudfront.net (CloudFront)"
+              }
+            ],
+            "accept-encoding": [
+              {
+                "key": "Accept-Encoding",
+                "value": "gzip"
+              }
+            ],
+            "dnt": [
+              {
+                "key": "dnt",
+                "value": "1"
+              }
+            ],
+            "upgrade-insecure-requests": [
+              {
+                "key": "upgrade-insecure-requests",
+                "value": "1"
+              }
+            ],
+            "sec-fetch-dest": [
+              {
+                "key": "sec-fetch-dest",
+                "value": "document"
+              }
+            ],
+            "sec-fetch-mode": [
+              {
+                "key": "sec-fetch-mode",
+                "value": "navigate"
+              }
+            ],
+            "sec-fetch-site": [
+              {
+                "key": "sec-fetch-site",
+                "value": "none"
+              }
+            ],
+            "host": [
+              {
+                "key": "Host",
+                "value": "rnewman-live-event-stack-3-cf.s3.us-east-1.amazonaws.com"
+              }
+            ]
+          },
+          "method": "GET",
+          "origin": {
+            "s3": {
+              "authMethod": "none",
+              "customHeaders": {},
+              "domainName": "rnewman-live-event-stack-3-cf.s3.us-east-1.amazonaws.com",
+              "path": ""
+            }
+          },
+          "querystring": "",
+          "uri": "/prod.deploy-config.json"
+        }
+      }
+    }
+  ]
+}

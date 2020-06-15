@@ -1,0 +1,21 @@
+.close-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: unset;
+  height: 2rem;
+  width: 2rem;
+  border: none;
+  border-radius: 100%;
+  font-size: 1rem;
+  color: var(--color_grey_40);
+  cursor: pointer;
+  transition: color 250ms ease;
+  will-change: transform;
+  z-index: 10;
+}
+
+.close-button:hover,
+.close-button:active {
+  color: var(--color_grey_90);
+}

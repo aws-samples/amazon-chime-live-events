@@ -1,0 +1,148 @@
+{"event": {
+  "Records": [{
+    "cf": {
+      "request": {
+    "clientIp": "98.145.134.173",
+    "headers": {
+        "x-forwarded-for": [
+            {
+                "key": "X-Forwarded-For",
+                "value": "98.145.134.173"
+            }
+        ],
+        "user-agent": [
+            {
+                "key": "User-Agent",
+                "value": "Amazon CloudFront"
+            }
+        ],
+        "via": [
+            {
+                "key": "Via",
+                "value": "2.0 fc48013403578d683e0591243fa02953.cloudfront.net (CloudFront)"
+            }
+        ],
+        "accept-encoding": [
+            {
+                "key": "Accept-Encoding",
+                "value": "gzip"
+            }
+        ],
+        "dnt": [
+            {
+                "key": "dnt",
+                "value": "1"
+            }
+        ],
+        "upgrade-insecure-requests": [
+            {
+                "key": "upgrade-insecure-requests",
+                "value": "1"
+            }
+        ],
+        "sec-fetch-dest": [
+            {
+                "key": "sec-fetch-dest",
+                "value": "document"
+            }
+        ],
+        "sec-fetch-mode": [
+            {
+                "key": "sec-fetch-mode",
+                "value": "navigate"
+            }
+        ],
+        "sec-fetch-site": [
+            {
+                "key": "sec-fetch-site",
+                "value": "none"
+            }
+        ],
+        "host": [
+            {
+                "key": "Host",
+                "value": "rnewman-live-event-stack-3-cf.s3.us-east-1.amazonaws.com"
+            }
+        ]
+    },
+    "method": "GET",
+    "origin": {
+        "s3": {
+            "authMethod": "none",
+            "customHeaders": {},
+            "domainName": "rnewman-live-event-stack-3-cf.s3.us-east-1.amazonaws.com",
+            "path": ""
+        }
+    },
+    "querystring": "",
+    "uri": "/prod.deploy-config.json"
+},
+"response": {
+    "headers": {
+        "x-amz-id-2": [
+            {
+                "key": "x-amz-id-2",
+                "value": "2fO9LSKFB6s4tS5rX+vcGx8LYL9gH9MQy5IBlzcw4n0qEVWuEjou8Xep772cQ1l6fUtJPJ/9DEQ="
+            }
+        ],
+        "x-amz-request-id": [
+            {
+                "key": "x-amz-request-id",
+                "value": "C0EEFE5D1E046B40"
+            }
+        ],
+        "date": [
+            {
+                "key": "Date",
+                "value": "Fri, 17 Apr 2020 17:04:51 GMT"
+            }
+        ],
+        "last-modified": [
+            {
+                "key": "Last-Modified",
+                "value": "Thu, 16 Apr 2020 23:30:45 GMT"
+            }
+        ],
+        "etag": [
+            {
+                "key": "ETag",
+                "value": "\"04ee1730dd1b74c997fecd9dc533826e\""
+            }
+        ],
+        "cache-control": [
+            {
+                "key": "Cache-Control",
+                "value": "max-age=600"
+            }
+        ],
+        "accept-ranges": [
+            {
+                "key": "Accept-Ranges",
+                "value": "bytes"
+            }
+        ],
+        "server": [
+            {
+                "key": "Server",
+                "value": "AmazonS3"
+            }
+        ],
+        "content-type": [
+            {
+                "key": "Content-Type",
+                "value": "application/json"
+            }
+        ],
+        "content-length": [
+            {
+                "key": "Content-Length",
+                "value": "178"
+            }
+        ]
+    },
+    "status": "200",
+    "statusDescription": "OK"
+}
+    }
+  }]
+}}

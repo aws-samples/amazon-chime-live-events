@@ -1,0 +1,2464 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Amazon Chime Live Event App Template
+
+Parameters:
+  UseEventBridge:
+    Description: Use EventBridge to process server side notifications
+    Default: false
+    Type: String
+    AllowedValues: [true, false]
+  EventPrefix:
+    Description: Event Prefix
+    Default: LiveEvent
+    Type: String
+  TalentFullName:
+    Description: Full name of talent
+    Default: John Smith
+    Type: String
+  UseStrictAccessKeys:
+    Description: Use Strict AccessKeys for Live Events
+    Default: true
+    Type: String
+    AllowedValues: [true, false]
+  DomainName:
+    Description: Domain name
+    Default: ''
+    Type: String
+  AcmCertArn:
+    Description: Acm Certificate Arn
+    Default: ''
+    Type: String
+  InputCodec:
+    Description: Specify the codec of the source stream for MediaLive (AVC/HEVC/MPEG2)
+    Type: String
+    Default: AVC
+    AllowedValues:
+    - AVC
+    - HEVC
+    - MPEG2
+  InputRes:
+    Description: Specify the Encoding Profile to use for MediaLive
+    Type: String
+    Default: '1080'
+    AllowedValues:
+    - '1080'
+    - '720'
+    - '540'
+  InputCIDR:
+    Description: Specify the CIDR Block for the MediaLive Security Group
+    Type: String
+    Default: '0.0.0.0/0'
+  ChannelStart:
+    Description: Start the Live Channel as part of the deployment
+    Type: String
+    Default: false
+    AllowedValues: [true, false]
+  CloudfrontSigningKeyId:
+    Description: Key ID of Cloudfront signing keypair
+    Type: String
+    Default: ''
+  CloudfrontPrivateSigningKeySecretArn:
+    Description: ARN of private key of Cloudfront signing keypair in Secrets Manager
+    Type: String
+    Default: ''
+  BroadcastAccessDurationSecs:
+    Description: Allowable duration of private broadcast access, in seconds
+    Type: Number
+    Default: 86400
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Deployment Options
+      Parameters:
+      - UseEventBridge
+      - EventPrefix
+      - UseStrictAccessKeys
+      - TalentFullName
+    - Label:
+        default: Custom Domain Name
+      Parameters:
+      - DomainName
+      - AcmCertArn
+    - Label:
+        default: Live Stream Source
+      Parameters:
+      - InputCodec
+      - InputRes
+      - ChannelStart
+    - Label:
+        default: PUSH Source
+      Parameters:
+      - InputCIDR
+    - Label:
+        default: Private Broadcasting
+      Parameters:
+      - CloudfrontSigningKeyId
+      - CloudfrontPrivateSigningKeySecretArn
+      - BroadcastAccessDurationSecs
+    ParameterLabels:
+      UseEventBridge:
+        default: Use EventBridge for notifications
+      EventPrefix:
+        default: Event prefix
+      UseStrictAccessKeys:
+        default: Use strict AccessKeys for Live Events
+      TalentFullName:
+        default: Full name of the talent
+      DomainName:
+        default: Custom Domain Name
+      AcmCertArn:
+        default: ACM Certificate ARN
+      InputCodec:
+        default: Source Codec
+      InputRes:
+        default: Encoding Profile
+      InputCIDR:
+        default: Input CIDR Block
+      ChannelStart:
+        default: Start MediaLive Channel on Deploy
+      CloudfrontSigningKeyId:
+        default: Key ID of Cloudfront signing keypair
+      CloudfrontPrivateSigningKeySecretArn:
+        default: ARN of private key of Cloudfront signing keypair in Secrets Manager
+      BroadcastAccessDurationSecs:
+        default: Allowable duration of private broadcast access, in seconds
+
+Conditions:
+  ShouldUseEventBridge: !Equals [true, !Ref UseEventBridge]
+  HasCustomDomainName: !Not [!Equals ['', !Ref DomainName]]
+  ShouldStartMediaLiveChannel: !Equals [true, !Ref ChannelStart]
+  HasPrivateBroadcasting: !Not [!Or [!Equals ['', !Ref CloudfrontSigningKeyId], !Equals ['', !Ref CloudfrontPrivateSigningKeySecretArn]]]
+
+Globals:
+  Function:
+    Runtime: nodejs12.x
+    Timeout: 30
+    MemorySize: 128
+
+Resources:
+  ChimeMeetingsAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ChimeMeetingsAccess
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'chime:CreateMeeting'
+              - 'chime:DeleteMeeting'
+              - 'chime:GetMeeting'
+              - 'chime:ListMeetings'
+              - 'chime:BatchCreateAttendee'
+              - 'chime:CreateAttendee'
+              - 'chime:DeleteAttendee'
+              - 'chime:GetAttendee'
+              - 'chime:ListAttendees'
+            Resource: '*'
+      Roles:
+        - Ref: ChimeSdkJoinLambdaRole
+        - Ref: ChimeSdkAttendeeLambdaRole
+        - Ref: ChimeSdkKickLambdaRole
+        - Ref: ChimeSdkEndLambdaRole
+        - Ref: ChimeSdkCreateMeetingLambdaRole
+        - Ref: MessagingAuthorizeFunctionRole
+        - Ref: LiveAttendeeUpdateLambdaRole
+        - Ref: LiveAttendeeRemoveLambdaRole
+  CloudWatchAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: CloudWatchAccess
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+              - 'logs:DescribeLogStreams'
+            Resource: '*'
+      Roles:
+        - Ref: ChimeSdkBrowserLogsLambdaRole
+  Meetings:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'Title'
+          AttributeType: 'S'
+        - AttributeName: 'Passcode'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'Title'
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      GlobalSecondaryIndexes:
+        - IndexName: 'Passcode'
+          KeySchema:
+            - AttributeName: 'Passcode'
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: '5'
+            WriteCapacityUnits: '5'
+      TimeToLiveSpecification:
+        AttributeName: 'TTL'
+        Enabled: true
+  Attendees:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'AttendeeId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'AttendeeId'
+          KeyType: 'HASH'
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+  MeetingNotificationsQueue:
+    Type: AWS::SQS::Queue
+  ChimeRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}'
+      StageName: Prod
+      Auth:
+        Authorizers:
+          GetLiveEventAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorize.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          # The code here is the same as the GET authorizer, but we need a separate authorizer
+          # defined because we are having issue related to setting the policyDocument.Statement[0].Effect (see liveEventAuthorize.js)
+          # with the particular methodArn, including the particular method GET vs PUT.
+          # If we set the methodArn to GET "arn:aws:execute-api:us-east-1:358614248599:hdp2b8cumj/Prod/GET/live-events/LiveEvent-nLFV"
+          # then subsequent PUT requests will be blocked with 403.
+          # Docs blame caching for this, but we do not have caching enabled, so we are not sure why we still face issues.
+          # Relevant doc: https://forums.aws.amazon.com/thread.jspa?threadID=283485
+          PutLiveEventAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorize.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          PutLiveAttendeeAuthorizer:
+            FunctionArn: !GetAtt LiveEventLiveAttendeeAuthorize.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          DeleteLiveAttendeeAuthorizer:
+            FunctionArn: !GetAtt LiveEventLiveAttendeeAuthorize.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          GetLiveEventBroadcastAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorizeBroadcast.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              QueryStrings:
+                - 'AttendeeId'
+          GetChimeAttendeeAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorize.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          PostChimeJoinAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorize.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          PostChimeCreateMeetingAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorizeNonAttendee.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          PostChimeKickAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorizeNonAttendee.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+          PostChimeEndMeetingAuthorizer:
+            FunctionArn: !GetAtt LiveEventAuthorizeNonAttendee.Arn
+            FunctionPayloadType: REQUEST
+            Identity:
+              Headers:
+                - 'Authorization'
+                - 'AttendeeId'
+      Cors:
+        AllowOrigin:
+          !Join [
+            '',
+            [
+              "'https://",
+              !If [
+                HasCustomDomainName,
+                !Ref DomainName,
+                !GetAtt LiveEventCloudFrontDistribution.DomainName,
+              ],
+              "'",
+            ],
+          ]
+        AllowHeaders: "'Content-Type,Authorization,AttendeeId'"
+        MaxAge: "'3600'"
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin:
+                !Join [
+                  '',
+                  [
+                    "'https://",
+                    !If [
+                      HasCustomDomainName,
+                      !Ref DomainName,
+                      !GetAtt LiveEventCloudFrontDistribution.DomainName,
+                    ],
+                    "'",
+                  ],
+                ]
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,AttendeeId'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Origin:
+                !Join [
+                  '',
+                  [
+                    "'https://",
+                    !If [
+                      HasCustomDomainName,
+                      !Ref DomainName,
+                      !GetAtt LiveEventCloudFrontDistribution.DomainName,
+                    ],
+                    "'",
+                  ],
+                ]
+              Access-Control-Allow-Headers: "'Content-Type,Authorization,AttendeeId'"
+      Models:
+        'Error':
+          type: object
+          properties:
+            message:
+              type: string
+  ChimeSdkCreateMeetingLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.createMeeting
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Meetings
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          USE_EVENT_BRIDGE: !Ref UseEventBridge
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          SQS_QUEUE_ARN: !GetAtt MeetingNotificationsQueue.Arn
+          BROWSER_LOG_GROUP_NAME: !Ref ChimeBrowserLogs
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /meeting
+            Method: POST
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: PostChimeCreateMeetingAuthorizer
+  ChimeSdkJoinLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.join
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Meetings
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Attendees
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          USE_EVENT_BRIDGE: !Ref UseEventBridge
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          SQS_QUEUE_ARN: !GetAtt MeetingNotificationsQueue.Arn
+          BROWSER_LOG_GROUP_NAME: !Ref ChimeBrowserLogs
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /join
+            Method: POST
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: PostChimeJoinAuthorizer
+  ChimeSdkKickLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: kickAttendee.handler
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Meetings
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Attendees
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+      Environment:
+        Variables:
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}/kick
+            Method: POST
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: PostChimeKickAuthorizer
+  ChimeSdkEndLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.end
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Meetings
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          SQS_QUEUE_ARN: !GetAtt MeetingNotificationsQueue.Arn
+          BROWSER_LOG_GROUP_NAME: !Ref ChimeBrowserLogs
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /end
+            Method: POST
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: PostChimeEndMeetingAuthorizer
+  ChimeSdkAttendeeLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.attendee
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Meetings
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Attendees
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          SQS_QUEUE_ARN: !GetAtt MeetingNotificationsQueue.Arn
+          BROWSER_LOG_GROUP_NAME: !Ref ChimeBrowserLogs
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /attendee
+            Method: GET
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: GetChimeAttendeeAuthorizer
+  ChimeSQSQueueLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: notification_handlers.sqs_handler
+      CodeUri: src/
+      Environment:
+        Variables:
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          SQS_QUEUE_ARN: !GetAtt MeetingNotificationsQueue.Arn
+          BROWSER_LOG_GROUP_NAME: !Ref ChimeBrowserLogs
+      Events:
+        MeetingNotificationsEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MeetingNotificationsQueue.Arn
+            BatchSize: 10
+  ChimeEventBridgeLambda:
+    Type: AWS::Serverless::Function
+    Condition: ShouldUseEventBridge
+    Properties:
+      Handler: notification_handlers.event_bridge_handler
+      CodeUri: src/
+      Environment:
+        Variables:
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          SQS_QUEUE_ARN: !GetAtt MeetingNotificationsQueue.Arn
+          BROWSER_LOG_GROUP_NAME: !Ref ChimeBrowserLogs
+      Events:
+        ChimeEventBridgeEvent:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              source:
+                - aws.chime
+              detail-type:
+                - 'Chime Meeting State Change'
+  ChimeSdkBrowserLogsLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handlers.logs
+      CodeUri: src/
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          ATTENDEES_TABLE_NAME: !Ref Attendees
+          SQS_QUEUE_ARN: !GetAtt MeetingNotificationsQueue.Arn
+          BROWSER_LOG_GROUP_NAME: !Ref ChimeBrowserLogs
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /logs
+            Method: POST
+            RestApiId: !Ref ChimeRestApi
+  ChimeNotificationsQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - sqs:SendMessage
+              - sqs:GetQueueUrl
+            Principal:
+              Service:
+                - chime.amazonaws.com
+            Resource: !GetAtt MeetingNotificationsQueue.Arn
+      Queues:
+        - Ref: MeetingNotificationsQueue
+  ChimeBrowserLogs:
+    Type: AWS::Logs::LogGroup
+
+  #
+  # Messaging API
+  #
+
+  MeetingConnections:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'MeetingId'
+          AttributeType: 'S'
+        - AttributeName: 'AttendeeId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'MeetingId'
+          KeyType: HASH
+        - AttributeName: 'AttendeeId'
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+  WebSocketMessagingApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-MessagingApi'
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: '$request.body.message'
+  MessagingConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      RouteKey: $connect
+      AuthorizationType: CUSTOM
+      AuthorizerId: !Ref MessagingAuthorizer
+      OperationName: ConnectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref MessagingConnectIntegration
+  MessagingConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      Description: Connect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MessagingOnConnectFunction.Arn}/invocations
+  MessagingDisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      OperationName: DisconnectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref MessagingDisconnectIntegration
+  MessagingDisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      Description: Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MessagingOnDisconnectFunction.Arn}/invocations
+  MessagingSendRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      RouteKey: sendmessage
+      AuthorizationType: NONE
+      OperationName: SendRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref MessagingSendIntegration
+  MessagingSendIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      Description: Send Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MessagingSendMessageFunction.Arn}/invocations
+  MessagingPingRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      RouteKey: ping
+      AuthorizationType: NONE
+      OperationName: PingRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref MessagingPingIntegration
+  MessagingPingIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+      Description: Messagin Ping Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MessagingPingFunction.Arn}/invocations
+  MessagingDeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn:
+      - MessagingConnectRoute
+      - MessagingSendRoute
+      - MessagingDisconnectRoute
+      - MessagingPingRoute
+    Properties:
+      ApiId: !Ref WebSocketMessagingApi
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      StageName: Prod
+      Description: Prod Stage
+      DeploymentId: !Ref MessagingDeployment
+      ApiId: !Ref WebSocketMessagingApi
+  MessagingOnConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: messaging.onconnect
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MeetingConnections
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: !Ref MeetingConnections
+  MessagingOnConnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - WebSocketMessagingApi
+      - MessagingOnConnectFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref MessagingOnConnectFunction
+      Principal: apigateway.amazonaws.com
+  MessagingAuthorizeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: messaging.authorize
+      Role: !GetAtt MessagingAuthorizeFunctionRole.Arn
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+          KMS_KEY_ALIAS: !Ref LiveEventsKmsKeyAlias
+  MessagingAuthorizeFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+        Version: '2012-10-17'
+      Policies:
+        - PolicyName: 'AccessKeysDDBAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:ConditionCheckItem'
+                Resource: !GetAtt AccessKeys.Arn
+        - PolicyName: 'LiveEventAttendeesDDBAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:ConditionCheckItem'
+                Resource: !GetAtt LiveEventAttendees.Arn
+        - PolicyName: 'KeyManagementAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'kms:*'
+                Resource: '*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  MessagingAuthorizePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - WebSocketMessagingApi
+      - MessagingAuthorizeFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref MessagingAuthorizeFunction
+      Principal: apigateway.amazonaws.com
+  MessagingAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      Name: MessagingLambdaAuthorizer
+      ApiId: !Ref WebSocketMessagingApi
+      AuthorizerType: REQUEST
+      AuthorizerUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MessagingAuthorizeFunction.Arn}/invocations
+      IdentitySource:
+        - route.request.querystring.MeetingId
+        - route.request.querystring.AttendeeId
+        - route.request.querystring.JoinToken
+        - route.request.querystring.Authorization
+  MessagingOnDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: messaging.ondisconnect
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MeetingConnections
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: !Ref MeetingConnections
+  MessagingOnDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - WebSocketMessagingApi
+      - MessagingOnDisconnectFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref MessagingOnDisconnectFunction
+      Principal: apigateway.amazonaws.com
+  MessagingSendMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: messaging.sendmessage
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MeetingConnections
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketMessagingApi}/*'
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: !Ref MeetingConnections
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+  MessagingSendMessagePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - WebSocketMessagingApi
+      - MessagingSendMessageFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref MessagingSendMessageFunction
+      Principal: apigateway.amazonaws.com
+  MessagingPingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: messaging.ping
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MeetingConnections
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketMessagingApi}/*'
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: !Ref MeetingConnections
+  MessagingPingPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - WebSocketMessagingApi
+      - MessagingPingFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref MessagingPingFunction
+      Principal: apigateway.amazonaws.com
+
+  #
+  # Live Event Tables
+  #
+
+  LiveEvents:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'LiveEventId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'LiveEventId'
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+  LiveEventAttendees:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'AttendeeId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'AttendeeId'
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+  AccessKeys:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'AccessKey'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'AccessKey'
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+  HandRaises:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'LiveEventId'
+          AttributeType: 'S'
+        - AttributeName: 'AttendeeId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'LiveEventId'
+          KeyType: HASH
+        - AttributeName: 'AttendeeId'
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      GlobalSecondaryIndexes:
+        - IndexName: 'LiveEventId'
+          KeySchema:
+            - AttributeName: 'LiveEventId'
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: '5'
+            WriteCapacityUnits: '5'
+      TimeToLiveSpecification:
+        AttributeName: 'TTL'
+        Enabled: true
+
+  #
+  # Live Event Apis
+  #
+
+  LiveEventGetLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEvent.getLiveEvent
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}
+            Method: GET
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: GetLiveEventAuthorizer
+      Environment:
+        Variables:
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+  LiveEventUpdateLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEvent.updateLiveEvent
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}
+            Method: PUT
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: PutLiveEventAuthorizer
+      Environment:
+        Variables:
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+  LiveEventBroadcastLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventBroadcast.getBroadcast
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - !If
+          - HasPrivateBroadcasting
+          - AWSSecretsManagerGetSecretValuePolicy:
+              SecretArn: !Ref CloudfrontPrivateSigningKeySecretArn
+          - !Ref AWS::NoValue
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}/broadcast
+            Method: GET
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: GetLiveEventBroadcastAuthorizer
+      Environment:
+        Variables:
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+          PKEY_CF_ID: !Ref CloudfrontSigningKeyId
+          PKEY_SECRET_ARN: !Ref CloudfrontPrivateSigningKeySecretArn
+          ALLOWED_DURATION_SECS: !Ref BroadcastAccessDurationSecs
+          ORIGIN_PATH: '/out/v1/*'
+          COOKIE_PATH: '/out/v1'
+  LiveEventHandRaisesLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handRaise.get
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaises
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}/hand-raises
+            Method: GET
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: PostChimeCreateMeetingAuthorizer
+      Environment:
+        Variables:
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          HAND_RAISES_TABLE: !Ref HandRaises
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+  LiveAttendeeUpdateLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveAttendee.add
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Meetings
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MeetingConnections
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketMessagingApi}/*'
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}/attendee/{attendeeId}
+            Method: PUT
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: PutLiveAttendeeAuthorizer
+      Environment:
+        Variables:
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          CONNECTIONS_TABLE_NAME: !Ref MeetingConnections
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+          WS_MEETING_ENDPOINT:
+            !Join [
+              '',
+              [
+                !Ref WebSocketMessagingApi,
+                '.execute-api.',
+                !Ref 'AWS::Region',
+                '.amazonaws.com/',
+                !Ref 'Stage',
+              ],
+            ]
+  LiveAttendeeUpdatePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - WebSocketMessagingApi
+      - LiveAttendeeUpdateLambda
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref LiveAttendeeUpdateLambda
+      Principal: apigateway.amazonaws.com
+  LiveAttendeeRemoveLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveAttendee.remove
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Meetings
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MeetingConnections
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketMessagingApi}/*'
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}/attendee/{attendeeId}
+            Method: DELETE
+            RestApiId: !Ref ChimeRestApi
+            Auth:
+              Authorizer: DeleteLiveAttendeeAuthorizer
+      Environment:
+        Variables:
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          CONNECTIONS_TABLE_NAME: !Ref MeetingConnections
+          MEETINGS_TABLE_NAME: !Ref Meetings
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+          WS_MEETING_ENDPOINT:
+            !Join [
+              '',
+              [
+                !Ref WebSocketMessagingApi,
+                '.execute-api.',
+                !Ref 'AWS::Region',
+                '.amazonaws.com/',
+                !Ref 'Stage',
+              ],
+            ]
+
+  #
+  # Live Event Authorize
+  #
+
+  LiveEventAuthorize:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventAuthorize.authorize
+      CodeUri: src/
+      Role: !GetAtt LiveEventAuthorizeRole.Arn
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+      AutoPublishAlias: live
+  LiveEventAuthorizeAttendee:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventAuthorizeAttendee.authorize
+      CodeUri: src/
+      Role: !GetAtt LiveEventAuthorizeRole.Arn
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+      AutoPublishAlias: live
+  LiveEventAuthorizeBroadcast:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventBroadcastAuthorize.authorize
+      CodeUri: src/
+      Role: !GetAtt LiveEventAuthorizeRole.Arn
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+      AutoPublishAlias: live
+  LiveEventAuthorizeModerator:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventAuthorizeModerator.authorize
+      CodeUri: src/
+      Role: !GetAtt LiveEventAuthorizeRole.Arn
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+      AutoPublishAlias: live
+  LiveEventAuthorizeNonAttendee:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventAuthorizeNonAttendee.authorize
+      CodeUri: src/
+      Role: !GetAtt LiveEventAuthorizeRole.Arn
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+      AutoPublishAlias: live
+  LiveEventAuthorizeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+        Version: '2012-10-17'
+      Policies:
+        - PolicyName: 'LiveEventAttendeesDDBAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:ConditionCheckItem'
+                Resource: !GetAtt LiveEventAttendees.Arn
+        - PolicyName: 'AccessKeysDDBAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:ConditionCheckItem'
+                Resource: !GetAtt AccessKeys.Arn
+        - PolicyName: 'KeyManagementAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'kms:*'
+                Resource: '*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  #
+  # Live Event Authenticate
+  #
+
+  LiveEventAuthenticate:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventAuthenticate.authenticate
+      CodeUri: src/
+      Role: !GetAtt LiveEventAuthenticateRole.Arn
+      Events:
+        Api1:
+          Type: Api
+          Properties:
+            Path: /live-events/{eventId}/authenticate
+            Method: POST
+            RestApiId: !Ref ChimeRestApi
+      Environment:
+        Variables:
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+          KMS_KEY_ALIAS: !Ref LiveEventsKmsKeyAlias
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+      AutoPublishAlias: live
+  LiveEventAuthenticateRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com]
+        Version: '2012-10-17'
+      Policies:
+        - PolicyName: 'AccessKeysDDBAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:ConditionCheckItem'
+                Resource: !GetAtt AccessKeys.Arn
+        - PolicyName: 'LiveEventsDDBAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:ConditionCheckItem'
+                Resource: !GetAtt LiveEvents.Arn
+        - PolicyName: 'LiveEventAttendeesDDBAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: 'Allow'
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:DeleteItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:Scan'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchWriteItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:DescribeTable'
+                  - 'dynamodb:ConditionCheckItem'
+                Resource: !GetAtt LiveEventAttendees.Arn
+        - PolicyName: 'KeyManagementAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'kms:*'
+                Resource: '*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  LiveEventLiveAttendeeAuthorize:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventLiveAttendeeAuthorize.authorize
+      CodeUri: src/
+      Role: !GetAtt LiveEventAuthorizeRole.Arn
+      Environment:
+        Variables:
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+      AutoPublishAlias: live
+
+  #
+  # Live Events KMS key
+  #
+
+  LiveEventsKmsKey:
+    Type: 'AWS::KMS::Key'
+    UpdateReplacePolicy: Retain
+    Properties:
+      Enabled: true
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ''
+                  - - 'arn:aws:iam::'
+                    - Ref: 'AWS::AccountId'
+                    - ':root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt LiveEventAuthorizeRole.Arn
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:GenerateDataKey'
+            Resource: '*'
+          - Sid: Allow use of the key
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt LiveEventAuthenticateRole.Arn
+            Action:
+              - 'kms:Encrypt'
+              - 'kms:Decrypt'
+              - 'kms:GenerateDataKey'
+            Resource: '*'
+          - Sid: Allow attachment of persistent resources
+            Effect: Allow
+            Principal:
+              AWS:
+                - !GetAtt LiveEventAuthenticateRole.Arn
+            Action:
+              - 'kms:CreateGrant'
+              - 'kms:ListGrants'
+              - 'kms:RevokeGrant'
+            Resource: '*'
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: true
+  LiveEventsKmsKeyAlias:
+    Type: AWS::KMS::Alias
+    UpdateReplacePolicy: Retain
+    Properties:
+      AliasName: !Sub 'alias/${AWS::StackName}-LiveEventKey'
+      TargetKeyId: !Ref LiveEventsKmsKey
+
+  #
+  # LiveEvents CustomerImport Resources
+  #
+
+  CustomerImportBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-customer-import'
+      AccessControl: 'Private'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  LiveEventCustomerImportCreateEvent:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: liveEventCustomerImport.createEvent
+      CodeUri: src/
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessKeys
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+        - S3CrudPolicy:
+            BucketName: !Ref CustomerImportBucket
+      Environment:
+        Variables:
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+          EVENT_PREFIX: !Ref EventPrefix
+          USE_STRICT_ACCESS_KEYS: !Ref UseStrictAccessKeys
+          TALENT_FULLNAME: !Ref TalentFullName
+          DOMAIN_NAME:
+            !If [
+              HasCustomDomainName,
+              !Ref DomainName,
+              !GetAtt LiveEventCloudFrontDistribution.DomainName,
+            ]
+          DOMAIN_PREFIX:
+            !Join [
+              '',
+              [
+                'https://',
+                !If [
+                  HasCustomDomainName,
+                  !Ref DomainName,
+                  !GetAtt LiveEventCloudFrontDistribution.DomainName,
+                ],
+                '/',
+              ],
+            ]
+          CUSTOMER_IMPORT_BUCKET: !Ref CustomerImportBucket
+      Timeout: 120
+
+  #
+  # Hand Raise WebSocket Resources
+  #
+
+  HandRaiseConnections:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'LiveEventId'
+          AttributeType: 'S'
+        - AttributeName: 'AttendeeId'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'LiveEventId'
+          KeyType: HASH
+        - AttributeName: 'AttendeeId'
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+  HandRaiseWebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-HandRaiseWebSocketApi'
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: '$request.body.message'
+  HandRaiseConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      RouteKey: $connect
+      AuthorizationType: CUSTOM
+      AuthorizerId: !Ref HandRaiseAuthorizer
+      OperationName: ConnectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref HandRaiseConnectIntegration
+  HandRaiseConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      Description: Hand Raise Connect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HandRaiseOnConnectFunction.Arn}/invocations
+  HandRaiseDisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      OperationName: DisconnectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref HandRaiseDisconnectIntegration
+  HandRaiseDisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      Description: Hand Raise Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HandRaiseOnDisconnectFunction.Arn}/invocations
+  HandRaiseSendRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      RouteKey: sendmessage
+      AuthorizationType: NONE
+      OperationName: SendRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref HandRaiseSendIntegration
+  HandRaiseSendIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      Description: Hand Raise Send Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HandRaiseSendMessageFunction.Arn}/invocations
+  HandRaisePingRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      RouteKey: ping
+      AuthorizationType: NONE
+      OperationName: PingRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref HandRaisePingIntegration
+  HandRaisePingIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+      Description: Hand Raise Ping Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HandRaisePingFunction.Arn}/invocations
+  HandRaiseDeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn:
+      - HandRaiseConnectRoute
+      - HandRaiseSendRoute
+      - HandRaiseDisconnectRoute
+      - HandRaisePingRoute
+    Properties:
+      ApiId: !Ref HandRaiseWebSocketApi
+  HandRaiseStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      StageName: Prod
+      Description: Prod Stage
+      DeploymentId: !Ref HandRaiseDeployment
+      ApiId: !Ref HandRaiseWebSocketApi
+  HandRaiseAuthorizeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handRaise.authorize
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaiseConnections
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessKeys
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HandRaiseWebSocketApi}/*'
+      Environment:
+        Variables:
+          HAND_RAISE_CONNECTION_TABLE: !Ref HandRaiseConnections
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+  HandRaiseAuthorizePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - HandRaiseWebSocketApi
+      - HandRaiseAuthorizeFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref HandRaiseAuthorizeFunction
+      Principal: apigateway.amazonaws.com
+  HandRaiseAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      Name: HandRaiseLambdaAuthorizer
+      ApiId: !Ref HandRaiseWebSocketApi
+      AuthorizerType: REQUEST
+      AuthorizerUri:
+        Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${HandRaiseAuthorizeFunction.Arn}/invocations
+      IdentitySource:
+        - route.request.querystring.LiveEventId
+        - route.request.querystring.AttendeeId
+  HandRaiseOnConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handRaise.onconnect
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaiseConnections
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessKeys
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HandRaiseWebSocketApi}/*'
+      Environment:
+        Variables:
+          HAND_RAISE_CONNECTION_TABLE: !Ref HandRaiseConnections
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+  HandRaiseOnConnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - HandRaiseWebSocketApi
+      - HandRaiseOnConnectFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref HandRaiseOnConnectFunction
+      Principal: apigateway.amazonaws.com
+  HandRaiseOnDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handRaise.ondisconnect
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaiseConnections
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaises
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessKeys
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HandRaiseWebSocketApi}/*'
+      Environment:
+        Variables:
+          HAND_RAISE_CONNECTION_TABLE: !Ref HandRaiseConnections
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+          HAND_RAISES_TABLE: !Ref HandRaises
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+  HandRaiseOnDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - HandRaiseWebSocketApi
+      - HandRaiseOnDisconnectFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref HandRaiseOnDisconnectFunction
+      Principal: apigateway.amazonaws.com
+  HandRaiseSendMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handRaise.sendmessage
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaiseConnections
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaises
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEvents
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AccessKeys
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LiveEventAttendees
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HandRaiseWebSocketApi}/*'
+      Environment:
+        Variables:
+          HAND_RAISE_CONNECTION_TABLE: !Ref HandRaiseConnections
+          LIVE_EVENTS_TABLE: !Ref LiveEvents
+          ACCESS_KEYS_TABLE: !Ref AccessKeys
+          HAND_RAISES_TABLE: !Ref HandRaises
+          LIVE_EVENT_ATTENDEES_TABLE: !Ref LiveEventAttendees
+  HandRaiseSendMessagePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - HandRaiseWebSocketApi
+      - HandRaiseSendMessageFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref HandRaiseSendMessageFunction
+      Principal: apigateway.amazonaws.com
+  HandRaisePingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: handRaise.ping
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref HandRaiseConnections
+        - Statement:
+            - Effect: Allow
+              Action:
+                - 'execute-api:ManageConnections'
+              Resource:
+                - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HandRaiseWebSocketApi}/*'
+      Environment:
+        Variables:
+          HAND_RAISE_CONNECTION_TABLE: !Ref HandRaiseConnections
+  HandRaisePingPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - HandRaiseWebSocketApi
+      - HandRaisePingFunction
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref HandRaisePingFunction
+      Principal: apigateway.amazonaws.com
+
+  #
+  # CloudFront Distribution Resources
+  #
+
+  LiveEventSwitchRequest:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.switchRequest
+      CodeUri: src/
+      Role: !GetAtt LiveEventCloudFrontFunctionRole.Arn
+      AutoPublishAlias: live
+  LiveEventAddResponse:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.addResponse
+      CodeUri: src/
+      Role: !GetAtt LiveEventCloudFrontFunctionRole.Arn
+      AutoPublishAlias: live
+  LiveEventCloudFrontFunctionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: [lambda.amazonaws.com, edgelambda.amazonaws.com]
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  LiveEventCloudFrontOai:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: 'Origin Access Identity for live events CloudFront distribution'
+  LiveEventCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: LiveEventCloudFrontStaticPagesBucket
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !If [HasCustomDomainName, Ref: DomainName, Ref: AWS::NoValue]
+        Comment: 'CloudFront distribution for live events'
+        # Behavior for Web assets origin
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - 'GET'
+            - 'HEAD'
+            - 'OPTIONS'
+          CachedMethods:
+            - 'GET'
+            - 'HEAD'
+          Compress: false
+          DefaultTTL: 6400
+          FieldLevelEncryptionId: ''
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          LambdaFunctionAssociations:
+            - EventType: 'origin-request'
+              IncludeBody: false
+              LambdaFunctionARN: !Ref LiveEventSwitchRequest.Version
+            - EventType: 'origin-response'
+              IncludeBody: false
+              LambdaFunctionARN: !Ref LiveEventAddResponse.Version
+          MaxTTL: 31536000
+          MinTTL: 0
+          SmoothStreaming: false
+          TargetOriginId: !Sub '${AWS::StackName}-cf.s3.${AWS::Region}.amazonaws.com-prod'
+          ViewerProtocolPolicy: 'redirect-to-https'
+        # Behavior for broadcast media assets origin
+        CacheBehaviors:
+        - TargetOriginId: !Sub '${AWS::StackName}-${AWS::Region}-mediapackage'
+          SmoothStreaming: false
+          AllowedMethods:
+          - 'GET'
+          - 'HEAD'
+          - 'OPTIONS'
+          CachedMethods:
+          - 'GET'
+          - 'HEAD'
+          - 'OPTIONS'
+          ForwardedValues:
+            Cookies:
+              Forward: all
+            QueryString: true
+            Headers:
+            - Access-Control-Allow-Origin
+            - Access-Control-Request-Method
+            - Access-Control-Request-Header
+          PathPattern: '/out/v1/*'
+          ViewerProtocolPolicy: 'redirect-to-https'
+          TrustedSigners:
+          - !If [HasPrivateBroadcasting, Ref: AWS::AccountId, Ref: AWS::NoValue]
+        Enabled: true
+        HttpVersion: 'http2'
+        IPV6Enabled: true
+        Logging:
+          Bucket: !GetAtt LiveEventCloudFrontLogsBucket.DomainName
+          IncludeCookies: false
+          Prefix: ''
+        Origins:
+          # Web assets
+          - DomainName: !GetAtt LiveEventCloudFrontStaticPagesBucket.RegionalDomainName
+            Id: !Sub '${AWS::StackName}-cf.s3.${AWS::Region}.amazonaws.com-prod'
+            OriginPath: ''
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub 'origin-access-identity/cloudfront/${LiveEventCloudFrontOai}'
+          # Broadcast media assets
+          - DomainName: !GetAtt MediaPackageHlsEndpoint.DomainName
+            Id: !Sub '${AWS::StackName}-${AWS::Region}-mediapackage'
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+        PriceClass: 'PriceClass_100'
+        ViewerCertificate:
+          AcmCertificateArn:
+            !If [HasCustomDomainName, Ref: AcmCertArn, Ref: AWS::NoValue]
+          CloudFrontDefaultCertificate:
+            !If [HasCustomDomainName, Ref: AWS::NoValue, true]
+          MinimumProtocolVersion: 'TLSv1.2_2018'
+          SslSupportMethod:
+            !If [HasCustomDomainName, 'sni-only', Ref: AWS::NoValue]
+        WebACLId: ''
+  LiveEventCloudFrontLogsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-cf-logs'
+      AccessControl: 'Private'
+  LiveEventCloudFrontStaticPagesBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LiveEventCloudFrontOai
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-cf'
+      AccessControl: 'Private'
+  LiveEventCloudFrontStaticPagesPolicy:
+    Type: AWS::S3::BucketPolicy
+    DependsOn:
+    - LiveEventCloudFrontStaticPagesBucket
+    - SiteDeploymentResource  # ensure that this runs first to do the upload b/c this policy will prevent that from working after its installed
+    Properties:
+      Bucket:
+        Ref: LiveEventCloudFrontStaticPagesBucket
+      PolicyDocument:
+        Id: 'AllowCloudFrontDistributionsReadAccess'
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action:
+              - 's3:GetObject'
+            Resource:
+              Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Ref: LiveEventCloudFrontStaticPagesBucket
+                  - '/*'
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - LiveEventCloudFrontOai
+                  - S3CanonicalUserId
+
+  #
+  # Web asset upload
+  #
+
+  # This configuration is taken from https://serverless.pub/deploy-frontend-to-s3-and-sar/.
+  # It helps us parameterize some stuff in our app at deploy time, such as websocket endpoints.
+  SiteDeploymentLayer:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:375983427419:applications/deploy-to-s3
+        SemanticVersion: 2.4.2
+  SiteSource:
+    Type: AWS::Serverless::Function
+    Properties:
+      Layers:
+        - !GetAtt SiteDeploymentLayer.Outputs.Arn
+      CodeUri: ../../../dist/
+      AutoPublishAlias: live
+      Runtime: python3.6
+      Handler: deployer.resource_handler
+      Timeout: 600
+      Policies:
+        - S3FullAccessPolicy:
+            BucketName: !Ref LiveEventCloudFrontStaticPagesBucket
+  # XXX Nota bene: This will fail if S3 Block Public Access is enabled at the account level
+  SiteDeploymentResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken: !GetAtt SiteSource.Arn
+      Version: !Ref 'SiteSource.Version'
+      TargetBucket: !Ref LiveEventCloudFrontStaticPagesBucket
+      Acl: 'public-read'
+      CacheControlMaxAge: 600
+      Substitutions:
+        FilePattern: '*.html'
+        Values:
+          AWS_REGION: !Ref AWS::Region
+          WS_MEETINGS_CSP: !Join ['', ['wss://', Ref: WebSocketMessagingApi, '.execute-api.', Ref: 'AWS::Region', '.amazonaws.com']]
+          WS_MEETINGS_ENDPOINT: !Join ['', ['wss://', Ref: WebSocketMessagingApi, '.execute-api.', Ref: 'AWS::Region', '.amazonaws.com/', Ref: 'Stage']]
+          WS_HANDRAISE_CSP: !Join ['', ['wss://', Ref: HandRaiseWebSocketApi, '.execute-api.', Ref: 'AWS::Region', '.amazonaws.com']]
+          WS_HANDRAISE_ENDPOINT: !Join ['', ['wss://', Ref: HandRaiseWebSocketApi, '.execute-api.', Ref: 'AWS::Region', '.amazonaws.com/', Ref: 'Stage']]
+          API_ALL_CSP: !Sub 'https://${ChimeRestApi}.execute-api.${AWS::Region}.amazonaws.com'
+          API_ALL_ENDPOINT: !Sub 'https://${ChimeRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
+          HLS_STREAM_ENDPOINT:
+            !Join [
+              '',
+              [
+                'https://',
+                !If [
+                  HasCustomDomainName,
+                  !Ref DomainName,
+                  !GetAtt LiveEventCloudFrontDistribution.DomainName,
+                ],
+                '/out/v1',
+                !GetAtt MediaPackageHlsEndpoint.Manifest,
+              ],
+            ]
+          DASH_STREAM_ENDPOINT:
+            !Join [
+              '',
+              [
+                'https://',
+                !If [
+                  HasCustomDomainName,
+                  !Ref DomainName,
+                  !GetAtt LiveEventCloudFrontDistribution.DomainName,
+                ],
+                '/out/v1',
+                !GetAtt MediaPackageDashEndpoint.Manifest,
+              ],
+            ]
+          MSS_STREAM_ENDPOINT:
+            !Join [
+              '',
+              [
+                'https://',
+                !If [
+                  HasCustomDomainName,
+                  !Ref DomainName,
+                  !GetAtt LiveEventCloudFrontDistribution.DomainName,
+                ],
+                '/out/v1',
+                !GetAtt MediaPackageMssEndpoint.Manifest,
+              ],
+            ]
+          CMAF_STREAM_ENDPOINT:
+            !Join [
+              '',
+              [
+                'https://',
+                !If [
+                  HasCustomDomainName,
+                  !Ref DomainName,
+                  !GetAtt LiveEventCloudFrontDistribution.DomainName,
+                ],
+                '/out/v1',
+                !GetAtt MediaPackageCmafEndpoint.Manifest,
+              ],
+            ]
+
+  #
+  # Broadcasting resources
+  #
+
+  ElementalMediaLiveRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - medialive.amazonaws.com
+      Policies:
+      - PolicyName: !Sub "${AWS::StackName}-mediatranscode-role"
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - ssm:DescribeParameters
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:PutParameter
+            Resource:
+            - !Join ["", ["arn:aws:ssm:", Ref: "AWS::Region", ":", Ref: "AWS::AccountId", ":parameter/*"]]
+          # MediaConnect support
+          - Effect: Allow
+            Action:
+            - mediaconnect:ManagedDescribeFlow
+            - mediaconnect:ManagedAddOutput
+            - mediaconnect:ManagedRemoveOutput
+            Resource:
+            - !Join ["", ["arn:aws:mediaconnect:", Ref: "AWS::Region", ":", Ref: "AWS::AccountId", ":*"]]
+  ElementalCustomResourceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+      Path: "/"
+      Policies:
+      - PolicyName: !Sub "${AWS::StackName}-custom-resource"
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource:
+            - !Join ["", ["arn:aws:logs:", Ref: "AWS::Region", ":", Ref: "AWS::AccountId", ":log-group:/aws/lambda/*"]]
+          - Effect: Allow
+            Action:
+            - medialive:CreateInputSecurityGroup
+            - medialive:DescribeInput
+            - medialive:CreateInput
+            - medialive:DeleteInput
+            - medialive:StopChannel
+            - medialive:CreateChannel
+            - medialive:DeleteChannel
+            - medialive:DeleteInputSecurityGroup
+            - medialive:DescribeChannel
+            - medialive:StartChannel
+            - medialive:TagResource
+            Resource:
+            - !Join ["", ["arn:aws:medialive:", Ref: "AWS::Region", ":", Ref: "AWS::AccountId", ":*"]]
+          - Effect: Allow
+            Action:
+            - mediapackage:CreateChannel
+            - mediapackage:DeleteChannel
+            - mediapackage:ListOriginEndpoints
+            - mediapackage:DeleteOriginEndpoint
+            - mediapackage:CreateOriginEndpoint
+            Resource:
+            - !Join ["", ["arn:aws:mediapackage:", Ref: "AWS::Region", ":", Ref: "AWS::AccountId", ":*"]]
+          - Effect: Allow
+            Action:
+            - ssm:PutParameter
+            Resource:
+            - !Join ["", ["arn:aws:ssm:", Ref: "AWS::Region", ":", Ref: "AWS::AccountId", ":parameter/*"]]
+          - Effect: Allow
+            Action:
+            - iam:PassRole
+            Resource:
+            - !GetAtt ElementalMediaLiveRole.Arn
+  ElementalCustomResource:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: elemental_custrsc.handler
+      CodeUri: src/
+      Role: !GetAtt ElementalCustomResourceRole.Arn
+      Timeout: 180
+      AutoPublishAlias: live
+  MediaPackageChannel:
+    Type: Custom::MediaPackageChannel
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaPackageChannel
+      ChannelId: !Sub ${AWS::StackName}-livestream
+  MediaPackageHlsEndpoint:
+    Type: Custom::MediaPackageHlsEndpoint
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaPackageEndPoint
+      EndPoint: HLS
+      ChannelId: !GetAtt MediaPackageChannel.ChannelId
+  MediaPackageDashEndpoint:
+    Type: Custom::MediaPackageDashEndpoint
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaPackageEndPoint
+      EndPoint: DASH
+      ChannelId: !GetAtt MediaPackageChannel.ChannelId
+  MediaPackageMssEndpoint:
+    Type: Custom::MediaPackageMssEndpoint
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaPackageEndPoint
+      EndPoint: MSS
+      ChannelId: !GetAtt MediaPackageChannel.ChannelId
+  MediaPackageCmafEndpoint:
+    Type: Custom::MediaPackageCmafEndpoint
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaPackageEndPoint
+      EndPoint: CMAF
+      ChannelId: !GetAtt MediaPackageChannel.ChannelId
+  MediaLiveInput:
+    Type: Custom::MediaLiveInput
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaLiveInput
+      StreamName: !Sub ${AWS::StackName}-livestream
+      Type: 'RTMP_PUSH'
+      Cidr: !Ref InputCIDR
+      RoleArn: !GetAtt ElementalMediaLiveRole.Arn
+  MediaLiveChannel:
+    Type: Custom::MediaLiveChannel
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaLiveChannel
+      Name: !Sub ${AWS::StackName}-livestream
+      Resolution: !Ref InputRes
+      Codec: !Ref InputCodec
+      Role: !GetAtt ElementalMediaLiveRole.Arn
+      InputId: !GetAtt MediaLiveInput.Id
+      Type: 'RTMP_PUSH'
+      MediaPackagePriUrl: !GetAtt MediaPackageChannel.PrimaryUrl
+      MediaPackagePriUser: !GetAtt MediaPackageChannel.PrimaryUser
+      MediaPackageSecUrl: !GetAtt MediaPackageChannel.SecondaryUrl
+      MediaPackageSecUser: !GetAtt MediaPackageChannel.SecondaryUser
+  MediaLiveChannelStart:
+    Type: Custom::MediaLiveChannelStart
+    Condition: ShouldStartMediaLiveChannel
+    Properties:
+      ServiceToken: !GetAtt ElementalCustomResource.Arn
+      Resource: MediaLiveChannelStart
+      ChannelId: !GetAtt MediaLiveChannel.ChannelId
+
+Outputs:
+  ApiURL:
+    Description: 'API endpoint URL for Prod environment'
+    Value: !Sub 'https://${ChimeRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
+  MessagingWebSocketURI:
+    Description: 'The Messaging WSS Protocol URI to connect to'
+    Value: !Join ['', ['wss://', Ref: WebSocketMessagingApi, '.execute-api.', Ref: 'AWS::Region', '.amazonaws.com/', Ref: 'Stage']]
+  HandRaiseWebSocketURI:
+    Description: 'The HandRaise WSS Protocol URI to connect to'
+    Value: !Join ['', ['wss://', Ref: HandRaiseWebSocketApi, '.execute-api.', Ref: 'AWS::Region', '.amazonaws.com/', Ref: 'Stage']]
+  TalentURL:
+    Description: 'The URL for accessing the Talent web app'
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/talent',
+        ],
+      ]
+  BroadcastURL:
+    Description: 'The URL for accessing the Broadcast web app'
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/broadcast',
+        ],
+      ]
+  ModeratorURL:
+    Description: 'The URL for accessing the Moderator web app'
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/moderator',
+        ],
+      ]
+  AttendeeURL:
+    Description: 'The URL for accessing the Attendee web app'
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/attendee',
+        ],
+      ]
+  CloudFrontDomainName:
+    Description: 'The CloudFront distribution domain name which would be aliased by the actual domain name'
+    Value: !GetAtt LiveEventCloudFrontDistribution.DomainName
+  CustomerImportS3Bucket:
+    Description: 'The S3 bucket where the moderators, attendees, broadcast and talent data must be specified'
+    Value: !Ref CustomerImportBucket
+  GenerateEventFunction:
+    Description: 'The generate event lambda function that takes as input data from the CustomerImportS3Bucket and creates an event'
+    Value: !Ref LiveEventCustomerImportCreateEvent
+  MediaLiveChannelId:
+    Description: 'ID of the MediaLive channel for this stack'
+    Value: !GetAtt MediaLiveChannel.ChannelId
+  MediaLivePrimaryEndpoint:
+    Description: Primary MediaLive input URL
+    Value: !GetAtt MediaLiveInput.EndPoint1
+  MediaLiveSecondaryEndpoint:
+    Description: Secondary MediaLive input URL
+    Value: !GetAtt MediaLiveInput.EndPoint2
+  CloudFrontHlsEnpoint:
+    Description: HLS CloudFront URL
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/out/v1',
+          !GetAtt MediaPackageHlsEndpoint.Manifest
+        ],
+      ]
+  CloudFrontDashEnpoint:
+    Description: DASH CloudFront URL
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/out/v1',
+          !GetAtt MediaPackageDashEndpoint.Manifest
+        ],
+      ]
+  CloudFrontMssEnpoint:
+    Description: MSS CloudFront URL
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/out/v1',
+          !GetAtt MediaPackageMssEndpoint.Manifest
+        ],
+      ]
+  CloudFrontCmafEnpoint:
+    Description: CMAF CloudFront URL
+    Value:
+      !Join [
+        '',
+        [
+          'https://',
+          !If [
+            HasCustomDomainName,
+            !Ref DomainName,
+            !GetAtt LiveEventCloudFrontDistribution.DomainName,
+          ],
+          '/out/v1',
+          !GetAtt MediaPackageCmafEndpoint.Manifest
+        ],
+      ]

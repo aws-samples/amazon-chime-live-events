@@ -1,0 +1,7 @@
+.button {
+  border: none;
+  background: none;
+  color: var(--color_white);
+  font-size: 1rem;
+  margin-right: auto;
+}

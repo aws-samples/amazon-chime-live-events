@@ -1,0 +1,10 @@
+.header {
+  padding: 1rem;
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--color_grey_80);
+  border-top: .01rem solid var(--color_grey_10);
+  border-bottom: .01rem solid var(--color_grey_10);
+  flex: 0;
+  font-weight: 600;
+}

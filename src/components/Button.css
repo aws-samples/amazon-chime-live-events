@@ -1,0 +1,97 @@
+.button {
+  position: relative;
+  border: none;
+  min-width: 3rem;
+  min-height: 2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 220ms ease, color 220ms ease, border 220ms ease;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2pt var(--color_info);
+}
+
+.button.normal {
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem 0.4375rem;
+  border-radius: var(--border-radius);
+}
+
+.button.large {
+  font-weight: 500;
+  padding: 0.75rem;
+  font-size: 1.1rem;
+  border-radius: var(--border-radius);
+}
+
+.button.variant-primary {
+  color: var(--color_white);
+  background: var(--color_brand_secondary);
+  border: 0.125rem solid var(--color_brand_secondary);
+}
+
+.button.variant-primary:hover {
+  background: var(--color_brand_secondary_dark);
+  border: 0.125rem solid var(--color_brand_secondary_dark);
+}
+
+.button.variant-default {
+  border: 0.125rem solid var(--color_grey_40);
+  color: var(--color_grey_50);
+  background-color: var(--color_white);
+}
+
+.button.variant-default:hover {
+  color: var(--color_white);
+  background-color: var(--color_grey_40);
+}
+
+.button.variant-secondary {
+  border: 0.125rem solid var(--color_grey_20);
+  color: var(--color_grey_50);
+  background-color: var(--color_grey_20);
+}
+
+.button.variant-secondary:hover {
+  border: 0.125rem solid var(--color_grey_50);
+  color: var(--color_white);
+  background-color: var(--color_grey_50);
+}
+
+.button.variant-alert {
+  border: 0.125rem solid var(--color_grey_40);
+  color: var(--color_grey_40);
+  background-color: var(--color_white);
+}
+
+.button.variant-alert:hover {
+  color: var(--color_error);
+  border: 0.125rem solid var(--color_error);
+}
+
+.button.variant-outline {
+  background-color: transparent;
+  border: 0.125rem solid var(--color_grey_30);
+  color: var(--color_grey_40);
+}
+
+.button.variant-outline:hover {
+  border: 0.125rem solid var(--color_grey_80);
+  color: var(--color_grey_90);
+}
+
+.button.variant-outline .inline-loader *::before {
+  background-color: var(--color_grey_40);
+}
+
+.inline-loader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 70%;
+}

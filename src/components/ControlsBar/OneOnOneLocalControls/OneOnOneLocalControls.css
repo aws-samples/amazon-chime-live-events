@@ -1,0 +1,33 @@
+.one-on-one {
+  display: flex;
+  flex-direction: column;
+}
+
+.one-on-one::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  display: block;
+  height: .125rem;
+  background-color: var(--color_grey_70);
+  transform: scaleX(0);
+  animation: expand 250ms ease forwards;
+}
+
+@keyframes expand {
+  0% {
+    transform: scaleX(0);
+  }
+
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@media (max-height: 45rem) {
+  .one-on-one::after {
+    display: none;
+  }
+}

@@ -1,0 +1,106 @@
+.notification {
+  position: relative;
+  width: 25rem;
+  max-width: 100%;
+  padding: 1.25rem 2rem 1.25rem 3.5rem;
+  border-radius: var(--border-radius);
+  color: var(--color_grey_80);
+  background-color: var(--color_white);
+  /* box-shadow: 0 3px 6px -4px rgba(0, 0, 0, .12), 0 6px 16px 0 rgba(0, 0, 0, .08), 0 9px 28px 8px rgba(0, 0, 0, .05); */
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, .3), 0 6px 10px 0 rgba(0, 0, 0, .28), 0 9px 20px 5px rgba(0, 0, 0, .15);
+
+}
+
+.close-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: unset;
+  height: 2rem;
+  width: 2rem;
+  border: none;
+  border-radius: 100%;
+  font-size: 1.25rem;
+  color: var(--color_grey_40);
+  cursor: pointer;
+  transform: scale(.7);
+  transition: color 250ms ease, transform 250ms ease;
+  will-change: transform;
+}
+
+.close-button:hover,
+.close-button:active {
+  color: var(--color_grey_90);
+  transform: scale(.85);
+}
+
+.title {
+  font-size: 1rem;
+  margin-bottom: .25rem;
+}
+
+.title:last-child {
+  margin-bottom: 0;
+}
+
+.message {
+  font-size: .875rem;
+  color: var(--color_grey_70);
+}
+
+.icon {
+  position: absolute;
+  display: block;
+  width: 1rem;
+  top: 50%;
+  left: 1.25rem;
+  transform: translateY(-50%);
+  font-size: 1.25rem;
+}
+
+.notification--success .icon {
+  color: var(--color_success);
+}
+
+.notification--info .icon {
+  color: var(--color_info);
+}
+
+.notification--error .icon {
+  color: var(--color_error);
+}
+
+.notification--warning .icon {
+  color: var(--color_warning);
+}
+
+.notification--success::after,
+.notification--info::after,
+.notification--error::after,
+.notification--warning::after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: .5rem;
+  border-top-left-radius: .125rem;
+  border-bottom-left-radius: .125rem;
+}
+
+.notification--success::after {
+  background-color: var(--color_success);
+}
+
+.notification--info::after {
+  background-color: var(--color_info);
+}
+
+.notification--error::after {
+  background-color: var(--color_error);
+}
+
+.notification--warning::after {
+  background-color: var(--color_warning);
+}

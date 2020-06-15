@@ -1,0 +1,63 @@
+.LiveEventView {
+  padding: 1.5rem;
+  position: relative;
+  height: 100%;
+  grid-row: LiveOnAir / VideoTiles;
+
+  display: grid;
+  grid-template-rows: 50% 50%;
+}
+
+.singleFeed {
+  grid-template-rows: 100%;
+}
+
+.LiveEventView.minimized {
+  grid-row: LiveOnAir;
+  grid-template-rows: 100%;
+  padding-bottom: 0;
+}
+
+.HoldingRoomVideoGroup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 0 0;
+}
+
+.HoldingRoomVideoGroup.minimized {
+  display: none !important;
+}
+
+.HoldingRoomRoster {
+  position: relative;
+  grid-area: HoldingRoom;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color_white);
+  z-index: 2;
+}
+
+.roster-placholder {
+  grid-area: HoldingRoom;
+  background-color: var(--color_white);
+}
+
+.onAirAttendees {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1rem;
+}
+
+.HoldingRoomVideoGroup>h2,
+.onAirAttendees>h2 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.meetingError {
+  position: relative;
+  grid-column: LiveOnAir / HoldingRoom;
+  grid-row: LiveOnAir / VideoTiles;
+}

@@ -1,0 +1,8 @@
+div.player.player {
+  width: 100vw;
+  height: calc(100vw * .5625);
+  max-height: 100vh;
+  background-color: inherit;
+  display: flex;
+  align-items: center;
+}

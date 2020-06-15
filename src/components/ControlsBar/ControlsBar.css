@@ -1,0 +1,34 @@
+.controls-bar {
+  position: relative;
+  grid-area: ControlsBar;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  background-color: var(--color_grey_90);
+  box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.3),
+    0 6px 10px 0 rgba(0, 0, 0, 0.28), 0 9px 20px 5px rgba(0, 0, 0, 0.15);
+}
+
+.live,
+.one-on-one {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 50%;
+}
+
+.one-on-one {
+  padding-top: 1.5rem;
+}
+
+@media (max-height: 45rem) {
+  .controls-bar {
+    justify-content: unset;
+  }
+
+  .live,
+  .one-on-one {
+    height: auto;
+  }
+}

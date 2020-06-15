@@ -1,0 +1,24 @@
+.buttonGroup {
+  display: flex;
+  align-items: center;
+}
+
+.buttonGroup>* {
+  margin: 0 0.75rem 0 0;
+}
+
+.buttonGroup>*:last-child {
+  margin: 0rem;
+}
+
+.stacked {
+  flex-direction: column;
+}
+
+.stacked button {
+  margin: 0 0 0.75rem 0;
+}
+
+.stacked>*:last-child {
+  margin: 0 0 0.75rem 0;
+}

@@ -1,0 +1,16 @@
+.button {
+  height: 2.5rem;
+  width: 2.5rem;
+  opacity: 0;
+  animation: fade-in 300ms ease forwards;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}

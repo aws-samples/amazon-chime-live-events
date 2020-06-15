@@ -1,0 +1,38 @@
+.liveIndicator {
+  position: absolute;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color_white);
+  z-index: 1000;
+}
+
+.live {
+  background-color: var(--color_error_light);
+  animation: fade 1s ease 5 alternate;
+}
+
+.notLive {
+  background-color: var(--color_black_medium_opacity);
+}
+
+.topRight {
+  top: 0.75rem;
+  right: 0.75rem;
+}
+
+.bottomRight {
+  bottom: 0.75rem;
+  right: 0.75rem;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0.3;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

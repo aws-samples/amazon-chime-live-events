@@ -1,0 +1,38 @@
+.OneOnOneMeeting {
+  position: relative;
+  grid-row: VideoTiles;
+  background-color: var(--color_black_medium_opacity);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding: 0 4rem;
+  animation: fade-in 300ms ease forwards;
+  opacity: 0;
+}
+
+.inactive {
+  display: none
+}
+
+.local-controls {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+}
+
+.volume {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

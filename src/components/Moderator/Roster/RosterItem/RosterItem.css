@@ -1,0 +1,37 @@
+.attendee {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  flex: 0 0 3rem;
+  padding: 0.75rem 1.25rem 1rem 1rem;
+  border-bottom: .0675rem solid var(--color_grey_10);
+}
+
+.attendee:last-of-type {
+  border-bottom: none;
+}
+
+.name {
+  display: block;
+  width: 100%;
+  margin-bottom: .875rem;
+  overflow: auto;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.localUserIcon {
+  margin-right: .125rem;
+  color: var(--color_warning);
+}
+
+.no-controls {
+  flex-wrap: nowrap;
+}
+
+.no-controls .name {
+  width: auto;
+  margin: 0 .5rem 0 0;
+}

@@ -1,0 +1,37 @@
+.error {
+  text-align: center;
+  max-width: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.errorMessage {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  font-size: 1.5rem;
+  color: var(--color_grey_10);
+}
+
+.goHomeLink {
+  display: inline-block;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color_grey_80);
+  background: var(--color_white);
+  cursor: pointer;
+  transition: opacity 0.15s;
+  user-select: none;
+  text-decoration: none;
+  margin: 2.5rem 0.5rem;
+  line-height: 1rem;
+}
+
+.goHomeLink:hover {
+  opacity: 0.8;
+}
