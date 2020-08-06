@@ -59,4 +59,4 @@ This contains resources for building an application that broadcast media from an
 To avoid incurring future charges, please delete the CloudFormation stack in your account.
 
 ## Broadcast/Recording General Architecture
-![architecture](https://drive-render.corp.amazon.com/view/ziyiz@/Recording_Broadcast.png)
+![architecture](https://github.com/aws-samples/amazon-chime-live-events/blob/master/resources/architecture_diagram.png)
