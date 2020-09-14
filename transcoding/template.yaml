@@ -12,7 +12,7 @@ Parameters:
     Default: 8192
   ECSContainerName:
     Type: String
-    Default: 'container-broadcast-lambda'
+    Default: container-
   ECSContainerCpu:
     Type: Number
     Default: 4096
@@ -25,7 +25,7 @@ Parameters:
   ECSClusterName:
     Type: String
     Description: 'Specifies the ECS Cluster Name with which the resources would be associated'
-    Default: 'ec2-cluster-broadcast-lambda'
+    Default: ec2-cluster-
   ECRDockerImageArn:
     Type: String
     Description: 'ARN of the docker image stored in ECR along with the tag'
@@ -54,7 +54,7 @@ Parameters:
   EnvironmentName:
     Description: An environment name that is prefixed to resource names
     Type: String
-    Default: environment-broadcast-lambda
+    Default: environment-
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
     Type: String
@@ -85,13 +85,13 @@ Resources:
   BroadcastECSLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: log-group-ecs-broadcast-lambda
+      LogGroupName: !Sub 'log-group-ecs-${AWS::StackName}-lambda'
       RetentionInDays: 365
   
   BroadcastLambdaFunction:
     Type: 'AWS::Serverless::Function'
     Properties:
-      FunctionName: broadcast-lambda
+      FunctionName: !Sub '${AWS::StackName}-lambda'
       Description: Lambda to interact with ECS for starting and stopping broadcast.
       Handler: index.handler
       Role: 
@@ -103,8 +103,7 @@ Resources:
         Variables:
           ecsClusterArn:
             Fn::GetAtt: [ECSCluster, Arn]
-          ecsContainerName: 
-            Ref: ECSContainerName
+          ecsContainerName: !Sub '${ECSContainerName}-${AWS::StackName}'
           ecsTaskDefinationArn: 
             Ref: ECSBroadcastTaskDefinition
       CodeUri: src/
@@ -123,8 +122,7 @@ Resources:
               Host:
                 SourcePath: '/run/dbus/system_bus_socket:/run/dbus/system_bus_socket'
         ContainerDefinitions:
-            - Name: 
-                Ref: ECSContainerName
+            - Name: !Sub '${ECSContainerName}-${AWS::StackName}'
               Cpu: 
                 Ref: ECSContainerCpu
               Memory: 
@@ -141,16 +139,14 @@ Resources:
                     Ref: BroadcastECSLogGroup
                   awslogs-region:
                     Ref: AWS::Region
-                  awslogs-stream-prefix:
-                    Ref: ECSContainerName
+                  awslogs-stream-prefix: !Sub '${ECSContainerName}-${AWS::StackName}'
               LinuxParameters:
                 SharedMemorySize: 2048
 
   ECSCluster:
     Type: 'AWS::ECS::Cluster'
     Properties:
-        ClusterName: 
-            Ref: ECSClusterName
+        ClusterName: !Sub '${ECSClusterName}-${AWS::StackName}'
 # Refer: https://docs.aws.amazon.com/codebuild/latest/userguide/cloudformation-vpc-template.html
   
   VPC:
@@ -162,13 +158,13 @@ Resources:
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: !Ref EnvironmentName
+          Value: !Sub '${EnvironmentName}-${AWS::StackName}'
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: !Ref EnvironmentName
+          Value:  !Sub '${EnvironmentName}-${AWS::StackName}'
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -183,7 +179,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+          Value: !Sub ${EnvironmentName}-${AWS::StackName} Public Subnet (AZ1)
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
@@ -193,14 +189,14 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${EnvironmentName} Public Subnet 
+          Value: !Sub ${EnvironmentName}-${AWS::StackName} Public Subnet 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub ${EnvironmentName} Public Routes
+          Value: !Sub ${EnvironmentName}-${AWS::StackName} Public Routes
   DefaultPublicRoute:
     Type: AWS::EC2::Route
     DependsOn: InternetGatewayAttachment
