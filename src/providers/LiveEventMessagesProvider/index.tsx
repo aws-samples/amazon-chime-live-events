@@ -6,12 +6,6 @@ import React, {
   Dispatch,
   useState,
 } from 'react';
-import {
-  DefaultPromisedWebSocketFactory,
-  ReconnectingPromisedWebSocket,
-  FullJitterBackoff,
-  DefaultDOMWebSocketFactory,
-} from 'amazon-chime-sdk-js';
 
 import getLiveEventParticipantContext from '../../context/getLiveEventParticipantContext';
 import { getHandRaiseWSSURL, getBaseURL } from '../../utils/configuredURLs';
@@ -28,8 +22,6 @@ import getCredentialsContext from '../../context/getCredentialsContext';
 export const DEFAULT_WEB_SOCKET_TIMEOUT_MS = 10000;
 
 class LiveEventMessagingService {
-  private static WEB_SOCKET_TIMEOUT_MS = DEFAULT_WEB_SOCKET_TIMEOUT_MS;
-
   private wsStabilizer: any;
 
   private stopWsStabilizer = () => {
@@ -59,7 +51,7 @@ class LiveEventMessagingService {
   attendeeId: string;
   moderatorId: string | undefined;
 
-  liveEventSocket: ReconnectingPromisedWebSocket | null = null;
+  liveEventSocket: WebSocket | null = null;
 
   messageUpdateCallbacks: ((message: LiveEventMessage) => void)[] = [];
 
@@ -81,22 +73,12 @@ class LiveEventMessagingService {
     const base = getHandRaiseWSSURL();
     const messagingUrl = `${base}?LiveEventId=${this.liveEventId}&AttendeeId=${this.attendeeId}`;
     console.log(`Setting up websocket to URL: ${messagingUrl}`);
-    this.liveEventSocket = new ReconnectingPromisedWebSocket(
-      messagingUrl,
-      [],
-      'arraybuffer',
-      new DefaultPromisedWebSocketFactory(new DefaultDOMWebSocketFactory()),
-      new FullJitterBackoff(1000, 0, 10000)
-    );
+    this.liveEventSocket = new WebSocket(messagingUrl);
 
     this.liveEventSocket.addEventListener('open', () => {
       // Initiate WS stabilizer
       this.startWsStabilizer();
     });
-
-    await this.liveEventSocket.open(
-      LiveEventMessagingService.WEB_SOCKET_TIMEOUT_MS
-    );
 
     this.liveEventSocket.addEventListener('message', (event: Event) => {
       try {
@@ -126,9 +108,8 @@ class LiveEventMessagingService {
     window.addEventListener('beforeunload', () => {
       this.stopWsStabilizer();
       console.debug('Closing live event socket.');
-      this.liveEventSocket?.close(500, 1000, 'Unload').then(() => {
-        console.debug('Closed live event socket.');
-      });
+      this.liveEventSocket?.close();
+      console.debug('Closed live event socket.');
     });
   };
 

@@ -8,8 +8,8 @@
     "Quantity": 1,
     "Items": [
       {
-        "Id": "richnew-chime-live-event-demo.s3.amazonaws.com-prod",
-        "DomainName": "richnew-chime-live-event-demo.s3.amazonaws.com",
+        "Id": "chime-live-event-demo.s3.amazonaws.com-prod",
+        "DomainName": "chime-live-event-demo.s3.amazonaws.com",
         "OriginPath": "",
         "CustomHeaders": {
           "Quantity": 0
@@ -24,7 +24,7 @@
     "Quantity": 0
   },
   "DefaultCacheBehavior": {
-    "TargetOriginId": "richnew-chime-live-event-demo.s3.amazonaws.com-prod",
+    "TargetOriginId": "chime-live-event-demo.s3.amazonaws.com-prod",
     "ForwardedValues": {
       "QueryString": false,
       "Cookies": {
@@ -70,7 +70,7 @@
   "Logging": {
     "Enabled": true,
     "IncludeCookies": false,
-    "Bucket": "richnew-chime-live-event-demo-logs.s3.amazonaws.com",
+    "Bucket": "chime-live-event-demo-logs.s3.amazonaws.com",
     "Prefix": ""
   },
   "PriceClass": "PriceClass_All",

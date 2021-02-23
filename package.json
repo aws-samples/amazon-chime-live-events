@@ -60,7 +60,7 @@
     "@types/uuid": "^7.0.2",
     "@types/video.js": "^7.3.8",
     "@videojs/http-streaming": "^1.13.3",
-    "amazon-chime-sdk-js": "^1.2.1",
+    "amazon-chime-sdk-js": "^2.5.0",
     "lodash.isequal": "^4.5.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",

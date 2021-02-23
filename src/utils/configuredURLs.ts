@@ -11,15 +11,15 @@ interface URLs {
 }
 
 const defaultURLs = {
-  baseURL: 'https://hdp2b8cumj.execute-api.us-east-1.amazonaws.com/Prod/',
-  handRaiseWSSURL: 'wss://g903wu7l95.execute-api.us-east-1.amazonaws.com/Prod',
-  messagingWSSURL: 'wss://4xavicolui.execute-api.us-east-1.amazonaws.com/Prod',
+  baseURL: '',
+  handRaiseWSSURL: '',
+  messagingWSSURL: '',
   broadcasts: {
     DASH: '',
     MSS: '',
     CMAF: '',
     HLS:
-      'https://usher.ttvnw.net/api/lvs/hls/lvs.693991300569.ross-stream.m3u8?allow_source=true',
+      '',
   },
 };
 

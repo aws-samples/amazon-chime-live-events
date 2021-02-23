@@ -30,7 +30,7 @@ export default function DeviceSwitcher() {
     ) {
       // If this finishes too late, it will happen after our cleanup, and
       // we will have a spurious video indicator. The SDK should return a promise.
-      chime.deviceController.startVideoPreviewForVideoInput(video.current);
+      chime.deviceController?.startVideoPreviewForVideoInput(video.current!);
     }
   }, [deviceSwitcherState, video]);
 
@@ -50,18 +50,6 @@ export default function DeviceSwitcher() {
     };
   }, []);
 
-  console.log(
-    'Initial audio input:',
-    deviceSwitcherState.currentAudioInputDevice
-  );
-  console.log(
-    'Initial audio output:',
-    deviceSwitcherState.currentAudioOutputDevice
-  );
-  console.log(
-    'Initial video input:',
-    deviceSwitcherState.currentVideoInputDevice
-  );
   return (
     <div className={cx('deviceContainer')}>
       <div className={cx('deviceList')}>
@@ -114,6 +102,10 @@ export default function DeviceSwitcher() {
           }
           onChange={async (selectedDevice: DeviceType) => {
             // eslint-disable-next-line prettier/prettier
+            if (!chime?.browserBehavior.supportsSetSinkId()) {
+              return;
+            }
+
             if (changed(selectedDevice, deviceSwitcherState.currentAudioOutputDevice)) {
               await chime?.chooseAudioOutputDevice(selectedDevice);
             }
