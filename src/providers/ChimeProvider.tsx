@@ -2,16 +2,13 @@ import {
   AudioVideoFacade,
   ConsoleLogger,
   DefaultDeviceController,
-  DefaultDOMWebSocketFactory,
   DefaultMeetingSession,
   DefaultModality,
-  DefaultPromisedWebSocketFactory,
   DeviceChangeObserver,
-  FullJitterBackoff,
   LogLevel,
   MeetingSession,
   MeetingSessionConfiguration,
-  ReconnectingPromisedWebSocket,
+  DefaultBrowserBehavior
 } from 'amazon-chime-sdk-js';
 import React, { ReactNode, useContext, useEffect, useMemo } from 'react';
 
@@ -31,9 +28,7 @@ import getLiveEventParticipantContext from '../context/getLiveEventParticipantCo
 export class ChimeSdkWrapper implements DeviceChangeObserver {
   intl: IntlShape;
 
-  private static WEB_SOCKET_TIMEOUT_MS = 10000;
-
-  logger: ConsoleLogger = new ConsoleLogger('SDK', LogLevel.WARN);
+  logger: ConsoleLogger = new ConsoleLogger('SDK', LogLevel.INFO);
 
   meetingSession: MeetingSession | null = null;
 
@@ -46,6 +41,8 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
   name: string | null = null;
 
   region: string | null = null;
+
+  browserBehavior = new DefaultBrowserBehavior()
 
   supportedChimeRegions: RegionType[] = [
     { label: 'United States (N. Virginia)', value: 'us-east-1' },
@@ -86,7 +83,7 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
 
   configuration: MeetingSessionConfiguration | null = null;
 
-  messagingSocket: ReconnectingPromisedWebSocket | null = null;
+  messagingSocket: WebSocket | null = null;
 
   messageUpdateCallbacks: ((message: Message) => void)[] = [];
 
@@ -366,7 +363,8 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
     if (
       !this.currentAudioOutputDevice &&
       audioOutputs.length &&
-      audioOutputs[0].deviceId
+      audioOutputs[0].deviceId &&
+      this.browserBehavior.supportsSetSinkId()
     ) {
       this.currentAudioOutputDevice = {
         label: audioOutputs[0].label,
@@ -386,6 +384,7 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
         label: videoInputs[0].label,
         value: videoInputs[0].deviceId,
       };
+
       await this.deviceController?.chooseVideoInputDevice(
         videoInputs[0].deviceId
       );
@@ -429,13 +428,7 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
     const encodedAuthPayload = window.btoa(JSON.stringify(headers));
 
     const messagingUrl = `${messagingWSSURL}?Authorization=${encodedAuthPayload}&MeetingId=${this.configuration.meetingId}&AttendeeId=${this.configuration.credentials?.attendeeId}&JoinToken=${this.configuration.credentials?.joinToken}`;
-    this.messagingSocket = new ReconnectingPromisedWebSocket(
-      messagingUrl,
-      [],
-      'arraybuffer',
-      new DefaultPromisedWebSocketFactory(new DefaultDOMWebSocketFactory()),
-      new FullJitterBackoff(1000, 0, 10000)
-    );
+    this.messagingSocket = new WebSocket(messagingUrl);
 
     this.messagingSocket.addEventListener('open', () => {
       if (this.configuration?.credentials?.attendeeId) {
@@ -451,14 +444,10 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
       }
     });
 
-    await this.messagingSocket.open(ChimeSdkWrapper.WEB_SOCKET_TIMEOUT_MS);
-
     window.addEventListener('beforeunload', () => {
       this.stopWsStabilizer();
       console.debug('Closing messaging socket.');
-      this.messagingSocket?.close(500, 1000, 'Unload').then(() => {
-        console.debug('Closed messaging socket.');
-      });
+      this.messagingSocket?.close()
     });
 
     this.messagingSocket.addEventListener('message', (event: Event) => {
@@ -534,7 +523,7 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
     }
 
     try {
-      await this.messagingSocket?.close(ChimeSdkWrapper.WEB_SOCKET_TIMEOUT_MS);
+      await this.messagingSocket?.close();
     } catch (error) {
       console.error('Unable to send close message on messaging socket.');
       this.logError(error);
@@ -567,16 +556,22 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
       this.currentAudioInputDevice = device;
       this.publishDevicesUpdated();
     } catch (error) {
+      console.log("Failed to select audio input device");
       this.logError(error);
     }
   };
 
   chooseAudioOutputDevice = async (device: DeviceType) => {
+    if (this.browserBehavior.supportsSetSinkId()) {
+      return;
+    }
+
     try {
       await this.deviceController?.chooseAudioOutputDevice(device.value);
       this.currentAudioOutputDevice = device;
       this.publishDevicesUpdated();
     } catch (error) {
+      console.log("Failed to select audio output device");
       this.logError(error);
     }
   };
@@ -587,6 +582,7 @@ export class ChimeSdkWrapper implements DeviceChangeObserver {
       this.currentVideoInputDevice = device;
       this.publishDevicesUpdated();
     } catch (error) {
+      console.log("Failed to select video input device");
       this.logError(error);
     }
   };
