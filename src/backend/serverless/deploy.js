@@ -208,9 +208,12 @@ console.log(`Using region ${region}, bucket ${bucket}, stack ${stack}, domain ${
 
 console.log('Creating deployment bucket');
 ensureBucket();
+console.log('Deployment of bucket is done');
 
 // Initiate deployment of broadcast stack.
+console.log('Started deploying broadcast');
 spawnOrFail('node', ['./deploy.js', '-b', `${bucket}-broadcast`, '-s', `${stack}-broadcast`, '-n', `${stack.toLowerCase()}-broadcast`], {cwd: path.resolve('../../../transcoding')})
+console.log('Deploying broadcast finished');
 
 console.log('Deploying serverless application');
 const prefix = ['deploy', '--s3-bucket', bucket, '--stack-name', stack, '--parameter-overrides'];

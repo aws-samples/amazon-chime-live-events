@@ -1,6 +1,6 @@
 const path = require('path');
-const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const webpack = require('webpack');
 
 console.log('Shared dirname is', __dirname);
 console.log('Template:', path.join(__dirname, '../index.html'));
@@ -9,7 +9,6 @@ console.log('Prod path:', path.join(__dirname, '../../dist'));
 module.exports = {
   dev: (title, filename, port) => ({
     mode: 'development',
-    watch: true,
     output: {
       path: path.join(__dirname, '../../public'),
       publicPath: '/',
@@ -22,6 +21,9 @@ module.exports = {
         title: `${title}`,
         filename: `${filename}.html`,
         template: path.join(__dirname, '../index.html'),
+      }),
+      new webpack.DefinePlugin({
+        "process.env.PLAIN_HMR": JSON.stringify(process.env.PLAIN_HMR)
       }),
     ],
     devServer: {
@@ -47,6 +49,9 @@ module.exports = {
         title: `${title}`,
         filename: `${filename}.html`,
         template: path.join(__dirname, '../index.html'),
+      }),
+      new webpack.DefinePlugin({
+        "process.env.PLAIN_HMR": JSON.stringify(process.env.PLAIN_HMR)
       }),
     ],
   }),
@@ -139,56 +144,32 @@ module.exports = {
         // WOFF Font
         {
           test: /\.woff(\?v=\d+\.\d+\.\d+)?$/,
-          use: {
-            loader: 'url-loader',
-            options: {
-              limit: 10000,
-              mimetype: 'application/font-woff',
-            },
-          },
+          type: 'asset/inline',
         },
         // WOFF2 Font
         {
           test: /\.woff2(\?v=\d+\.\d+\.\d+)?$/,
-          use: {
-            loader: 'url-loader',
-            options: {
-              limit: 10000,
-              mimetype: 'application/font-woff',
-            },
-          },
+          type: 'asset/inline',
         },
         // TTF Font
         {
           test: /\.ttf(\?v=\d+\.\d+\.\d+)?$/,
-          use: {
-            loader: 'url-loader',
-            options: {
-              limit: 10000,
-              mimetype: 'application/octet-stream',
-            },
-          },
+          type: 'asset/inline',
         },
         // EOT Font
         {
           test: /\.eot(\?v=\d+\.\d+\.\d+)?$/,
-          use: 'file-loader',
+          type: 'asset/resource',
         },
         // SVG Font
         {
           test: /\.svg(\?v=\d+\.\d+\.\d+)?$/,
-          use: {
-            loader: 'url-loader',
-            options: {
-              limit: 10000,
-              mimetype: 'image/svg+xml',
-            },
-          },
+          type: 'asset/inline',
         },
         // Common Image Formats
         {
           test: /\.(?:ico|gif|png|jpg|jpeg|webp)$/,
-          use: 'url-loader',
+          type: 'asset/inline',
         },
       ],
     },
