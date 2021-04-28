@@ -51,6 +51,11 @@ user_pref("media.gmp-gmpopenh264.version", "1.8.1.1");
 user_pref("doh-rollout.doorhanger-shown", true);
 EOF
 
+# Hide microphone logo
+cat <<EOF >> /tmp/foo4/prefs.js
+user_pref("privacy.webrtc.legacyGlobalIndicator", false);
+EOF
+
 # Start Firefox browser and point it at the URL we want to capture
 #
 # NB: The `--width` and `--height` arguments have to be very early in the
