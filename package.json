@@ -28,7 +28,7 @@
     "@typescript-eslint/parser": "^2.30.0",
     "babel-eslint": "^9.0.0",
     "csp-html-webpack-plugin": "^4.0.0",
-    "css-loader": "^3.4.2",
+    "css-loader": "^3.6.0",
     "eslint": "^5.16.0",
     "eslint-config-airbnb": "^17.1.1",
     "eslint-config-prettier": "^4.3.0",
@@ -57,9 +57,7 @@
   },
   "dependencies": {
     "@types/lodash.isequal": "^4.5.5",
-    "@types/uuid": "^7.0.2",
     "@types/video.js": "^7.3.8",
-    "@videojs/http-streaming": "^1.13.3",
     "amazon-chime-sdk-js": "^2.5.0",
     "lodash.isequal": "^4.5.0",
     "react": "^16.13.1",
@@ -72,7 +70,6 @@
     "resize-observer": "^1.0.0",
     "source-map-support": "^0.5.16",
     "throttle-debounce": "^2.1.0",
-    "uuid": "^7.0.3",
-    "video.js": "^7.7.5"
+    "video.js": "^7.11.8"
   }
 }

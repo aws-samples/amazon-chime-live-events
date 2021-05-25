@@ -1,5 +1,5 @@
 import React from 'react';
-import { v4 as uuidv4 } from 'uuid';
+const { randomUUID } = require('crypto');
 
 import {
   useLiveEventMessages,
@@ -63,7 +63,7 @@ const QueueFeed: React.FC<Props> = ({ className }) => {
       `Attempting to start meeting with viewer ID: ${targetAttendeeId}.`
     );
 
-    const meetingId = uuidv4();
+    const meetingId = randomUUID();
     const message = {
       type: LiveEventMessageType.JOIN_MEETING,
       payload: {
