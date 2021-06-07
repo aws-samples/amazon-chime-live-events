@@ -1,4 +1,4 @@
-import { AttendeeMeetingProgress } from '../enums/AtttendeeMetteingProgress';
+import { AttendeeMeetingProgress } from '../enums/AtttendeeMeetingProgress';
 
 type BasePayload = {
   liveEventId: string;

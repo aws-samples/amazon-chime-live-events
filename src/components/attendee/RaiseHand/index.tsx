@@ -28,7 +28,7 @@ import IncomingCallModal from './IncomingCallModal';
 import useTranslate from '../../../hooks/useTranslate';
 
 import styles from './RaiseHand.css';
-import { AttendeeMeetingProgress } from '../../../enums/AtttendeeMetteingProgress';
+import { AttendeeMeetingProgress } from '../../../enums/AtttendeeMeetingProgress';
 const cx = classNames.bind(styles);
 
 const RaiseHand = () => {

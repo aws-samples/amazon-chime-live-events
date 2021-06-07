@@ -13,7 +13,7 @@ import useTranslate from '../hooks/useTranslate';
 
 import styles from './DressingRoom.css';
 import { useLiveEventMessagingService } from '../providers/LiveEventMessagesProvider';
-import { AttendeeMeetingProgress } from '../enums/AtttendeeMetteingProgress';
+import { AttendeeMeetingProgress } from '../enums/AtttendeeMeetingProgress';
 
 const cx = classNames.bind(styles);
 

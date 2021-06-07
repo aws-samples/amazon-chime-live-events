@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+const { randomUUID } = require('crypto');
 
 export enum Variant {
   ERROR = 'error',
@@ -63,7 +63,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
 
   switch (type) {
     case Type.ADD: {
-      const notif = { id: uuidv4(), ...payload };
+      const notif = { id: randomUUID(), ...payload };
       const notifications = notif?.replaceAll
         ? [notif]
         : [...state.notifications, notif];
@@ -93,7 +93,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: 'Starting meeting...',
           },
         ],
@@ -105,7 +105,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: `${payload} declined your invite.`,
           },
         ],
@@ -117,7 +117,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: `Error starting meeting with ${payload.name}.`,
             variant: Variant.ERROR,
           },
@@ -130,7 +130,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: 'You have been muted by a moderator.',
           },
         ],
@@ -142,7 +142,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: 'You have been unmuted by a moderator.',
           },
         ],
@@ -154,7 +154,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: 'Your video has been started by a moderator.',
           },
         ],
@@ -166,7 +166,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: 'Your video has been turned off by a moderator.',
           },
         ],
@@ -178,7 +178,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: `Transferring to meeting`,
             message:
               'You are being transferred to the live event meeting. You will join muted with video enabled.',
@@ -192,7 +192,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: `You are live`,
             message: 'A moderator has promoted you to the live broadcast.',
             variant: Variant.WARNING,
@@ -206,7 +206,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: payload,
           },
         ],
@@ -218,7 +218,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: payload,
           },
         ],
@@ -230,7 +230,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title:
               'You cannot perform this action without the talent being live.',
             variant: Variant.ERROR,
@@ -244,7 +244,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: 'There was an error submitting your hand raise.',
             variant: Variant.ERROR,
           },
@@ -257,7 +257,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title:
               'There was an error trying to bring you into the live event for your hand raise.',
             variant: Variant.ERROR,
@@ -271,7 +271,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: payload,
             variant: Variant.ERROR,
           },
@@ -284,7 +284,7 @@ export const reducer = (state: StateType, action: Action): StateType => {
         notifications: [
           ...state.notifications,
           {
-            id: uuidv4(),
+            id: randomUUID(),
             title: payload,
             variant: Variant.ERROR,
           },

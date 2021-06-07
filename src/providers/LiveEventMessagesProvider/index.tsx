@@ -16,7 +16,7 @@ import {
 } from '../../types/LiveEventMessages';
 import { State, initialState, reducer, Type } from './state';
 import { useLiveEventContext } from '../LiveEventProvider';
-import { AttendeeMeetingProgress } from '../../enums/AtttendeeMetteingProgress';
+import { AttendeeMeetingProgress } from '../../enums/AtttendeeMeetingProgress';
 import getCredentialsContext from '../../context/getCredentialsContext';
 
 export const DEFAULT_WEB_SOCKET_TIMEOUT_MS = 10000;
