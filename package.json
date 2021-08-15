@@ -73,6 +73,6 @@
     "source-map-support": "^0.5.16",
     "throttle-debounce": "^2.1.0",
     "uuid": "^7.0.3",
-    "video.js": "^7.7.5"
+    "video.js": "^7.14.3"
   }
 }
