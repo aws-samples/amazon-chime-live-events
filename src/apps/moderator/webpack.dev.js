@@ -1,4 +1,4 @@
-const merge = require('webpack-merge');
+const { merge } = require('webpack-merge');
 const { base, dev } = require('../webpack.shared.js');
 
 console.log('Dev dirname is', __dirname);

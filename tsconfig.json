@@ -2,15 +2,15 @@
   "compilerOptions": {
     "target": "ES6",
     "module": "CommonJS",
-    "lib": ["dom", "esnext"],
+    "lib": ["dom", "es6"],
     "jsx": "react",
-    "strict": true,
     "pretty": true,
     "sourceMap": true,
     /* Additional Checks */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": false,
+    "noImplicitAny": true,
     "noFallthroughCasesInSwitch": true,
     /* Module Resolution Options */
     "moduleResolution": "node",

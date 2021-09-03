@@ -9,7 +9,6 @@ console.log('Prod path:', path.join(__dirname, '../../dist'));
 module.exports = {
   dev: (title, filename, port) => ({
     mode: 'development',
-    watch: true,
     output: {
       path: path.join(__dirname, '../../public'),
       publicPath: '/',
@@ -23,12 +22,19 @@ module.exports = {
         filename: `${filename}.html`,
         template: path.join(__dirname, '../index.html'),
       }),
+      new webpack.DefinePlugin({
+        'process.env.PLAIN_HMR': false,
+     })
     ],
     devServer: {
-      contentBase: path.resolve(__dirname, 'src'),
+      devMiddleware: {
+        writeToDisk: true,
+      },
+      static: {
+        directory: path.resolve(__dirname, 'src'),
+      },
       liveReload: true,
       historyApiFallback: true,
-      writeToDisk: true,
       port,
     },
   }),
@@ -48,6 +54,9 @@ module.exports = {
         filename: `${filename}.html`,
         template: path.join(__dirname, '../index.html'),
       }),
+      new webpack.DefinePlugin({
+        'process.env.PLAIN_HMR': false,
+     })
     ],
   }),
 
