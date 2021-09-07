@@ -7,7 +7,7 @@
     "csvtojson": "^2.0.10",
     "otp-generator": "^1.1.0",
     "short-uuid": "^3.1.1",
-    "axios": "*"
+    "axios": "^0.21.4"
   },
   "devDependencies": {
     "aws-sdk": "^2.687.0",
