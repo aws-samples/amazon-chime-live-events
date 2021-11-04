@@ -1,4 +1,11 @@
-## Live Event Broadcast Serverless Application - Use Lambda function to Start/Stop Broadcast Task in ECS
+# Live Event Transcoding Serverless Application
+
+The transcoding serverless application is used for broadcasting the live event stream to the attendees. It records the meeting based on the meeting url provided to it when you start the transcoding lambda, and streams that recording to the specified RTMP endpoint URL. 
+
+The application has a deploy script that will create a separate Docker image and CloudFormation stack suffixed with `-broadcast` that contains all of the resources to run the Transcoder Serverless Application. When deployed, you can trigger a transcoding lambda test event to start/stop the broadcast task in ECS.
+
+> Note: If you ran the backend deploy.js script already then transcoding deploy script is run automatically and you should be able to find the cloudformation stack in your AWS account.
+## Using Lambda function to Start/Stop Broadcast Task in ECS
 
 This contains resources for building an application that broadcast media from any URL of meeting sessions to a RTMP endpiont URL. Included is a Docker image and a serverless AWS CloudFormation template that you can deploy to your AWS account. The AWS CloudFormation template orchestrates resources (including Amazon Lambda and Amazon ECS) that run the broadcast application. When deployed, you can create Lambda test events to start/stop broadcast task in ECS.
 
@@ -6,7 +13,7 @@ This contains resources for building an application that broadcast media from an
 * [An AWS account](https://signin.aws.amazon.com/signin?redirect_uri=https%3A%2F%2Fportal.aws.amazon.com%2Fbilling%2Fsignup%2Fresume&client_id=signup)
 * [Latest version of AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-mac.html)
 
-## How to Run
+## Deploying the transcoding stack
 1. Clone this code repository.
 2. Simply run:
     ```
@@ -18,34 +25,14 @@ This contains resources for building an application that broadcast media from an
     node ./deploy.js -b broadcast-lambda-cf-deploy-bucket -s broadcast-lambda-cf-stack -n broadcast-lambda -r us-east-1
     ```
 
-3. Once the deployment completes, it shows the ARN of Lambda function created. Go to AWS console and find the function. 
+3. Once the deployment completes, it shows the ARN of Lambda function created. Go to AWS console and find the function.
+ The arn of the broadcast lambda function will look something like this: `arn:aws:lambda:us-east-1:000087643245:function:broadcast-lambda-cf-stack-lambda`. This function will be used in the next section to start/stop the ECS task.
     
-   #### Options to start/stop transcoding
-   1. You can **START** a broadcast by creating a test event with the input below, then click **Test** button: 
-    ```
-    {
-      "action": "start",
-      "meetingURL": "<your-meeting-url-to-be-broadcast>",
-      "rtmpEndpoint": "<your-rtmp-endpoint-url>"
-    }
-    ```
-    The output of the above command is an ECS task ID, it will be used to **STOP** the broadcast. To stop the broadcast, create another test event with the input below, then click **Test** button:
-    ```
-    {
-      "action": "stop",
-      "taskId": "<your-ecs-task-id-or-arn>"
-    }
-    ```
-    2.  Use AWS client to invoke lambda to start and stop transcoding. 
-      ```
-      // Start
-      aws lambda invoke --function-name broadcast-lambda --payload '{"action":"start","meetingURL":"<your-meeting-url-to-be-broadcast>","rtmpEndpoint":"<your-rtmp-endpoint-url>"}' --cli-binary-format raw-in-base64-out output.json
+## Running the transcoding task in ECS
+Please refer to the [running transcoding for broadcast](../README.md/#running-transcoding-for-broadcast) section in the main README.
 
-      // Stop  
-      aws lambda invoke --function-name broadcast-lambda --payload '{"action":"stop", "taskId": "<your-ecs-task-id-or-arn>"}' --cli-binary-format raw-in-base64-out output.json
-      ```
-
-## What's in Behind
+## What will running deploy.js do?
+This section dives into the implementation of the deploy script. Following are the several resources created by the script.
 * Create an Amazon Elastic Container Registry (ECR) repository
   * `aws ecr create-repository --repository-name <repository-name>`
 * Build a Docker image and upload to the ECR repository
@@ -59,4 +46,4 @@ This contains resources for building an application that broadcast media from an
 To avoid incurring future charges, please delete the CloudFormation stack in your account.
 
 ## Broadcast/Recording General Architecture
-![architecture](https://github.com/aws-samples/amazon-chime-live-events/blob/master/resources/architecture_diagram.png)
+![architecture](https://github.com/aws-samples/amazon-chime-live-events/blob/master/resources/transcoding_architecture_diagram.png)
