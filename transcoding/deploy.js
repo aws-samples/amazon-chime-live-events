@@ -172,7 +172,7 @@ ensureECS();
 
 buildUploadDockerImage();
 
-console.log('Deploying Broadcast API application');
+console.log('Deploying Broadcast API application. The following SAM command is a lengthy action and takes a while to finish.');
 spawnOrFail('sam', [
   'deploy',
   '--s3-bucket',
