@@ -4,13 +4,13 @@
     "test": "jest"
   },
   "dependencies": {
+    "axios": "^0.21.4",
     "csvtojson": "^2.0.10",
     "otp-generator": "^1.1.0",
-    "short-uuid": "^3.1.1",
-    "axios": "^0.21.4"
+    "short-uuid": "^3.1.1"
   },
   "devDependencies": {
     "aws-sdk": "^2.687.0",
-    "jest": "^26.6.3"
+    "jest": "^27.3.1"
   }
 }
