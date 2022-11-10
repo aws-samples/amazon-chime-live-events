@@ -30,7 +30,7 @@
     "moment": "^2.29.4",
     "rc-tooltip": "^4.0.3",
     "react-hot-loader": "^4.12.20",
-    "replace": "^1.2.0",
+    "replace": "^1.2.2",
     "style-loader": "^3.2.1",
     "ts-loader": "^9.2.5",
     "typescript": "^4.2.0",
