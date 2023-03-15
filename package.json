@@ -1,63 +1,104 @@
 {
-  "name": "chime-sdk-react-demo",
+  "name": "amazon-chime-sdk-meeting-with-live-connector",
   "scripts": {
-    "COMMENT": "Yes, this uses ./node_modules/.bin. That's because npm puts that binary path _at the end of PATH_. Sigh.",
-    "fix-eval": "./node_modules/replace/bin/replace.js -r --include='*.js' 'eval.*\\(moduleName\\);' 'undefined;' ./node_modules/protobufjs/",
-    "release": "npm run fix-eval && rm -rf dist/* && npm run package:attendee && npm run package:moderator && npm run package:talent && npm run package:broadcast",
-    "package:attendee": "./node_modules/.bin/webpack --config src/apps/attendee/webpack.prod.js",
-    "package:moderator": "./node_modules/.bin/webpack --config src/apps/moderator/webpack.prod.js",
-    "package:talent": "./node_modules/.bin/webpack --config src/apps/talent/webpack.prod.js",
-    "package:broadcast": "./node_modules/.bin/webpack --config src/apps/broadcast/webpack.prod.js",
-    "start:attendee": "./node_modules/.bin/webpack-dev-server --hot --config src/apps/attendee/webpack.dev.js",
-    "start:moderator": "./node_modules/.bin/webpack-dev-server --hot --config src/apps/moderator/webpack.dev.js",
-    "start:talent": "./node_modules/.bin/webpack-dev-server --hot --config src/apps/talent/webpack.dev.js",
-    "start:broadcast": "./node_modules/.bin/webpack-dev-server --hot --config src/apps/broadcast/webpack.dev.js"
+    "build": "npx projen build",
+    "bundle": "npx projen bundle",
+    "clobber": "npx projen clobber",
+    "compile": "npx projen compile",
+    "configLocal": "npx projen configLocal",
+    "default": "npx projen default",
+    "deploy": "npx projen deploy",
+    "destroy": "npx projen destroy",
+    "diff": "npx projen diff",
+    "eject": "npx projen eject",
+    "eslint": "npx projen eslint",
+    "getBucket": "npx projen getBucket",
+    "launch": "npx projen launch",
+    "package": "npx projen package",
+    "post-compile": "npx projen post-compile",
+    "post-upgrade": "npx projen post-upgrade",
+    "pre-compile": "npx projen pre-compile",
+    "synth": "npx projen synth",
+    "synth:silent": "npx projen synth:silent",
+    "test": "npx projen test",
+    "test:watch": "npx projen test:watch",
+    "upgrade": "npx projen upgrade",
+    "watch": "npx projen watch",
+    "projen": "npx projen"
   },
   "devDependencies": {
-    "@fortawesome/fontawesome-free": "^5.13.0",
-    "@hot-loader/react-dom": "^16.13.0",
-    "@types/react": "^16.9.32",
-    "@types/react-dom": "^16.9.6",
-    "@types/react-modal": "^3.10.5",
-    "@types/react-redux": "^7.1.7",
-    "@types/react-router-dom": "^5.1.3",
-    "@types/resize-observer-browser": "^0.1.3",
-    "@types/throttle-debounce": "^2.1.0",
-    "csp-html-webpack-plugin": "^5.1.0",
-    "css-loader": "^6.7.3",
-    "file-loader": "^6.0.0",
-    "html-webpack-plugin": "^5.3.2",
-    "moment": "^2.29.4",
-    "rc-tooltip": "^4.0.3",
-    "react-hot-loader": "^4.13.1",
-    "replace": "^1.2.2",
-    "style-loader": "^3.2.1",
-    "ts-loader": "^9.2.5",
-    "typescript": "^4.2.0",
-    "url-loader": "^4.0.0",
-    "webpack": "^5.51.1",
-    "webpack-cli": "^4.7.0",
-    "webpack-dev-server": "^4.9.1",
-    "webpack-merge": "^5.8.0"
+    "@types/jest": "^28.1.8",
+    "@types/node": "^14",
+    "@typescript-eslint/eslint-plugin": "^5",
+    "@typescript-eslint/parser": "^5",
+    "aws-cdk": "^2.68.0",
+    "esbuild": "^0.17.11",
+    "eslint": "^8",
+    "eslint-import-resolver-node": "^0.3.7",
+    "eslint-import-resolver-typescript": "^3.5.3",
+    "eslint-plugin-import": "^2.27.5",
+    "jest": "^28.1.3",
+    "jest-junit": "^13",
+    "npm-check-updates": "^16",
+    "projen": "^0.68.0",
+    "ts-jest": "^28.0.8",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.5"
   },
   "dependencies": {
-    "@types/lodash.isequal": "^4.5.5",
-    "@types/uuid": "^7.0.2",
-    "@types/video.js": "^7.3.8",
-    "@videojs/http-streaming": "^2.10.2",
-    "amazon-chime-sdk-js": "^2.5.0",
-    "lodash.isequal": "^4.5.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "react-dropdown": "^1.7.0",
-    "react-intl": "^5.20.10",
-    "react-modal": "^3.11.2",
-    "react-router": "^5.1.2",
-    "react-router-dom": "^5.1.2",
-    "resize-observer": "^1.0.0",
-    "source-map-support": "^0.5.16",
-    "throttle-debounce": "^2.1.0",
-    "uuid": "^7.0.3",
-    "video.js": "^7.14.3"
-  }
+    "@aws-sdk/client-chime-sdk-media-pipelines": "^3.290.0",
+    "@aws-sdk/client-chime-sdk-meetings": "^3.290.0",
+    "@aws-sdk/client-dynamodb": "^3.290.0",
+    "@aws-sdk/client-ivs": "^3.290.0",
+    "@aws-sdk/lib-dynamodb": "^3.290.0",
+    "@types/aws-lambda": "^8.10.112",
+    "@types/fs-extra": "^9.0.13",
+    "aws-cdk-lib": "^2.68.0",
+    "aws-lambda": "^1.0.7",
+    "constructs": "^10.0.5",
+    "fs-extra": "^10.1.0"
+  },
+  "license": "Apache-2.0",
+  "version": "0.0.0",
+  "jest": {
+    "testMatch": [
+      "<rootDir>/src/**/__tests__/**/*.ts?(x)",
+      "<rootDir>/(test|src)/**/*(*.)@(spec|test).ts?(x)"
+    ],
+    "clearMocks": true,
+    "collectCoverage": true,
+    "coverageReporters": [
+      "json",
+      "lcov",
+      "clover",
+      "cobertura",
+      "text"
+    ],
+    "coverageDirectory": "coverage",
+    "coveragePathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "watchPathIgnorePatterns": [
+      "/node_modules/"
+    ],
+    "reporters": [
+      "default",
+      [
+        "jest-junit",
+        {
+          "outputDirectory": "test-reports"
+        }
+      ]
+    ],
+    "preset": "ts-jest",
+    "globals": {
+      "ts-jest": {
+        "tsconfig": "tsconfig.dev.json"
+      }
+    }
+  },
+  "//": "~~ Generated by projen. To modify, edit .projenrc.js and run \"npx projen\"."
 }

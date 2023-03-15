@@ -1,9 +1,0 @@
-.buttons {
- display: flex;
- flex-direction: column;
-}
-
-.buttons button {
-    margin: .25rem 0;
-}
-
