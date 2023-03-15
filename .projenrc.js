@@ -5,6 +5,7 @@ const project = new awscdk.AwsCdkTypeScriptApp({
   name: 'amazon-chime-sdk-meeting-with-live-connector',
   deps: ['fs-extra', '@types/fs-extra'],
   appEntrypoint: 'amazon-chime-sdk-meeting-with-live-connector.ts',
+  workflowNodeVersion: '16.x',
   devDeps: ['esbuild'],
   deps: [
     'fs-extra',
