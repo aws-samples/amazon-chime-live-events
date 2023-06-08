@@ -696,7 +696,7 @@ Object {
       "Type": "AWS::IAM::Role",
       "UpdateReplacePolicy": "Retain",
     },
-    "infrastructureChimeSDKMeetingAPIDeploymentBBBB89965fb837aa2ed8a3c4f783ba9dc364d1b1": Object {
+    "infrastructureChimeSDKMeetingAPIDeploymentBBBB89967b59bd24ec42caabf277b5daa4ea10f0": Object {
       "DependsOn": Array [
         "infrastructureChimeSDKMeetingAPIendOPTIONS531B838C",
         "infrastructureChimeSDKMeetingAPIendPOSTE9B3F16A",
@@ -723,7 +723,7 @@ Object {
       ],
       "Properties": Object {
         "DeploymentId": Object {
-          "Ref": "infrastructureChimeSDKMeetingAPIDeploymentBBBB89965fb837aa2ed8a3c4f783ba9dc364d1b1",
+          "Ref": "infrastructureChimeSDKMeetingAPIDeploymentBBBB89967b59bd24ec42caabf277b5daa4ea10f0",
         },
         "MethodSettings": Array [
           Object {
@@ -742,6 +742,7 @@ Object {
     },
     "infrastructureChimeSDKMeetingAPIOPTIONS0F18E938": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -801,6 +802,7 @@ Object {
     },
     "infrastructureChimeSDKMeetingAPIendOPTIONS531B838C": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -975,6 +977,7 @@ Object {
     },
     "infrastructureChimeSDKMeetingAPIjoinOPTIONS7CC1A74F": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1149,6 +1152,7 @@ Object {
     },
     "infrastructureChimeSDKMeetingAPIstreamOPTIONS267A1BAB": Object {
       "Properties": Object {
+        "ApiKeyRequired": false,
         "AuthorizationType": "NONE",
         "HttpMethod": "OPTIONS",
         "Integration": Object {
@@ -1425,7 +1429,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "b232536b0b821ba3f684cafb041e5531f2784d49cf21b2c0b39fa20eb1f7f3da.zip",
+          "S3Key": "33db98b466e679c6550e57833936fdc36e1be89c3b2e6f79144b0e2a08226005.zip",
         },
         "Environment": Object {
           "Variables": Object {
