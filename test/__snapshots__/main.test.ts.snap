@@ -330,7 +330,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "350185a1069fa20a23a583e20c77f6844218bd73097902362dc94f1a108f5d89.zip",
+          "S3Key": "64267bdade6530c78c99e1df05c9336e81c8dad82fdb06133ee90f7390f69d26.zip",
         },
         "Description": Object {
           "Fn::Join": Array [
@@ -344,7 +344,7 @@ Object {
             ],
           ],
         },
-        "Handler": "__entrypoint__.handler",
+        "Handler": "index.handler",
         "MemorySize": 128,
         "Role": Object {
           "Fn::GetAtt": Array [
@@ -1429,7 +1429,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "9f37b0863192900853e353acecd9b0fb55d5398bceca9410d33fc52cc3472c83.zip",
+          "S3Key": "b274d11a1a24c27535586735c2e3a0009e00b4b59aa361f3495a1a6d1d308fd3.zip",
         },
         "Environment": Object {
           "Variables": Object {
