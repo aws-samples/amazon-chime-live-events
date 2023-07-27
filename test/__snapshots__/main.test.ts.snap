@@ -2,109 +2,6 @@
 
 exports[`Snapshot 1`] = `
 Object {
-  "Mappings": Object {
-    "DefaultCrNodeVersionMap": Object {
-      "af-south-1": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-east-1": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-northeast-1": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-northeast-2": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-northeast-3": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-south-1": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-south-2": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-southeast-1": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-southeast-2": Object {
-        "value": "nodejs16.x",
-      },
-      "ap-southeast-3": Object {
-        "value": "nodejs16.x",
-      },
-      "ca-central-1": Object {
-        "value": "nodejs16.x",
-      },
-      "cn-north-1": Object {
-        "value": "nodejs16.x",
-      },
-      "cn-northwest-1": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-central-1": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-central-2": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-north-1": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-south-1": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-south-2": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-west-1": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-west-2": Object {
-        "value": "nodejs16.x",
-      },
-      "eu-west-3": Object {
-        "value": "nodejs16.x",
-      },
-      "me-central-1": Object {
-        "value": "nodejs16.x",
-      },
-      "me-south-1": Object {
-        "value": "nodejs16.x",
-      },
-      "sa-east-1": Object {
-        "value": "nodejs16.x",
-      },
-      "us-east-1": Object {
-        "value": "nodejs16.x",
-      },
-      "us-east-2": Object {
-        "value": "nodejs16.x",
-      },
-      "us-gov-east-1": Object {
-        "value": "nodejs16.x",
-      },
-      "us-gov-west-1": Object {
-        "value": "nodejs16.x",
-      },
-      "us-iso-east-1": Object {
-        "value": "nodejs14.x",
-      },
-      "us-iso-west-1": Object {
-        "value": "nodejs14.x",
-      },
-      "us-isob-east-1": Object {
-        "value": "nodejs14.x",
-      },
-      "us-west-1": Object {
-        "value": "nodejs16.x",
-      },
-      "us-west-2": Object {
-        "value": "nodejs16.x",
-      },
-    },
-  },
   "Outputs": Object {
     "distribution": Object {
       "Value": Object {
@@ -330,7 +227,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "64267bdade6530c78c99e1df05c9336e81c8dad82fdb06133ee90f7390f69d26.zip",
+          "S3Key": "a657308e723bb9460b800cb3b47dadb74e28243edfe246bf7755c45ec312eb97.zip",
         },
         "Description": Object {
           "Fn::Join": Array [
@@ -352,7 +249,7 @@ Object {
             "Arn",
           ],
         },
-        "Runtime": "nodejs16.x",
+        "Runtime": "nodejs18.x",
         "Timeout": 900,
       },
       "Type": "AWS::Lambda::Function",
@@ -465,7 +362,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "f8e422c63159c82c409e8254300a3134e020892c27382902d4c8c0a5b35d0a06.zip",
+          "S3Key": "e2277687077a2abf9ae1af1cc9565e6715e2ebb62f79ec53aa75a1af9298f642.zip",
         },
         "Description": "/opt/awscli/aws",
       },
@@ -1429,7 +1326,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "f3a119d3aa2a52b14da637f7fe139717fdc17ebac4cf05b0434f55b5e662cae9.zip",
+          "S3Key": "8c8f46b73f7a908c40424b75cc76786f77e25dc459c94955a6a13eb502721e3f.zip",
         },
         "Environment": Object {
           "Variables": Object {
