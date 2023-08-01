@@ -255,7 +255,7 @@
           "exec": "yarn install --check-files"
         },
         {
-          "exec": "yarn upgrade"
+          "exec": "yarn upgrade @types/jest @types/node @typescript-eslint/eslint-plugin @typescript-eslint/parser aws-cdk esbuild eslint-import-resolver-node eslint-import-resolver-typescript eslint-plugin-import eslint jest jest-junit npm-check-updates projen ts-jest ts-node typescript @aws-sdk/client-chime-sdk-media-pipelines @aws-sdk/client-chime-sdk-meetings @aws-sdk/client-dynamodb @aws-sdk/client-ivs @aws-sdk/lib-dynamodb @types/aws-lambda @types/fs-extra aws-cdk-lib aws-lambda constructs fs-extra"
         },
         {
           "exec": "npx projen"
