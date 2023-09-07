@@ -149,12 +149,12 @@ Once the media live connector has been configured to use the IVS channel, we can
 
 ### Service-Linked Role
 
-Included in this demo is a service-linked role that allows the pipelines to access Amazon Chime SDK meetings.
+A [service linked role](https://docs.aws.amazon.com/chime-sdk/latest/ag/using-service-linked-roles-media-pipeline.html#create-slr) is required for this deployment.
 
-```typescript
-new CfnServiceLinkedRole(this, 'mediaPipelinesSLR', {
-  awsServiceName: 'mediapipelines.chime.amazonaws.com',
-});
+If this does not already exist in your account, you can run:
+
+```bash
+aws iam create-service-linked-role --aws-service-name mediapipelines.chime.amazonaws.com
 ```
 
 ## Components Deployed

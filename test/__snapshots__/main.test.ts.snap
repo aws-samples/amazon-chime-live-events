@@ -413,7 +413,7 @@ Object {
           },
         ],
         "SourceObjectKeys": Array [
-          "8530382dfee159d1d6b0c7f3ff56889b28298879f5c87b6f5cb24e201269613f.zip",
+          "532a2ce88532036a4bad0301ea65cdba80145f49970788963f475bd96c384901.zip",
           "54db0af5da74dab89a93c249167c5b162223925d4c9385ff9262a09b67c99244.zip",
         ],
       },
@@ -1326,7 +1326,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "40fbf5dfaf2e645ec053d28d9429746982e728403fbea43f0f8553fc8ffd8661.zip",
+          "S3Key": "9d2a9bd90a525174440502b23827551d834e47f518b9041ddbe3e7a769e71a59.zip",
         },
         "Environment": Object {
           "Variables": Object {
@@ -1374,12 +1374,6 @@ Object {
       },
       "Type": "AWS::DynamoDB::Table",
       "UpdateReplacePolicy": "Delete",
-    },
-    "mediaPipelinesSLR": Object {
-      "Properties": Object {
-        "AWSServiceName": "mediapipelines.chime.amazonaws.com",
-      },
-      "Type": "AWS::IAM::ServiceLinkedRole",
     },
   },
   "Rules": Object {

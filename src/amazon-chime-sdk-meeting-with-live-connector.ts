@@ -1,15 +1,10 @@
 import { App, Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
-import { CfnServiceLinkedRole } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { Site, Infrastructure } from './index';
 
 export class AmazonChimeSDKWithLiveConnector extends Stack {
   constructor(scope: Construct, id: string, props: StackProps = {}) {
     super(scope, id, props);
-
-    new CfnServiceLinkedRole(this, 'mediaPipelinesSLR', {
-      awsServiceName: 'mediapipelines.chime.amazonaws.com',
-    });
 
     const infrastructure = new Infrastructure(this, 'infrastructure');
 

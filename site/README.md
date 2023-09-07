@@ -1,4 +1,4 @@
-## Amazon Chime SDK With Amazon Lex Bot for Existing Contact Centers SIP Client
+## Amazon Chime SDK Live Event Client
 
 ## To Use
 
