@@ -124,6 +124,7 @@ Object {
               "Action": Array [
                 "s3:GetObject*",
                 "s3:GetBucket*",
+                "s3:HeadObject",
                 "s3:List*",
               ],
               "Effect": "Allow",
@@ -165,6 +166,7 @@ Object {
               "Action": Array [
                 "s3:GetObject*",
                 "s3:GetBucket*",
+                "s3:HeadObject",
                 "s3:List*",
                 "s3:DeleteObject*",
                 "s3:PutObject",
@@ -227,7 +229,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "a657308e723bb9460b800cb3b47dadb74e28243edfe246bf7755c45ec312eb97.zip",
+          "S3Key": "b7f33614a69548d6bafe224d751a7ef238cde19097415e553fe8b63a4c8fd8a6.zip",
         },
         "Description": Object {
           "Fn::Join": Array [
@@ -413,7 +415,7 @@ Object {
           },
         ],
         "SourceObjectKeys": Array [
-          "532a2ce88532036a4bad0301ea65cdba80145f49970788963f475bd96c384901.zip",
+          "647cc1a3707a78a80dcf10c63f32ab4089d746ddb78fcbca6738bc2548648524.zip",
           "54db0af5da74dab89a93c249167c5b162223925d4c9385ff9262a09b67c99244.zip",
         ],
       },
@@ -465,6 +467,7 @@ Object {
           "Statement": Array [
             Object {
               "Action": Array [
+                "s3:PutBucketPolicy",
                 "s3:GetBucket*",
                 "s3:List*",
                 "s3:DeleteObject*",
@@ -1326,7 +1329,7 @@ Object {
           "S3Bucket": Object {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "9d2a9bd90a525174440502b23827551d834e47f518b9041ddbe3e7a769e71a59.zip",
+          "S3Key": "ef83b0c121f14634ef9b650935732a4cd3ec59c13b08df6a4244930c3bccfeb8.zip",
         },
         "Environment": Object {
           "Variables": Object {
